@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<component>
+    <name>com.fungewubi.ibus</name>
+    <description>函戈五笔输入法</description>
+    <exec>/usr/lib/ibus-fungewubi/ibus-engine-fungewubi --ibus</exec>
+    <version>0.1.0</version>
+    <author>FungeWubi</author>
+    <license>MIT</license>
+    <homepage>https://github.com/VoldemortGin/fungewubi</homepage>
+    <textdomain>ibus-fungewubi</textdomain>
+    <engines>
+        <engine>
+            <name>fungewubi</name>
+            <language>zh</language>
+            <license>MIT</license>
+            <author>FungeWubi</author>
+            <icon>/usr/share/ibus-fungewubi/icon.png</icon>
+            <layout>us</layout>
+            <longname>函戈五笔</longname>
+            <description>基于 Rust 的高性能五笔输入法</description>
+            <rank>99</rank>
+            <symbol>五</symbol>
+        </engine>
+    </engines>
+</component>
