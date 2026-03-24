@@ -62,6 +62,7 @@ fn main() {
         let mode_str = match engine.mode() {
             InputMode::Chinese => "中",
             InputMode::English => "英",
+            InputMode::TempEnglish => "临英",
         };
         print!("[{}] ", mode_str);
 
@@ -92,13 +93,30 @@ fn main() {
         // 读取按键
         let key = read_key();
         match key {
+            Key::Char(c) if c.is_ascii_uppercase() => {
+                let action = engine.handle_uppercase(c);
+                handle_action(&action, &mut committed_text);
+            }
             Key::Char(c) if c.is_ascii_lowercase() => {
                 let action = engine.handle_key(c);
                 handle_action(&action, &mut committed_text);
             }
-            Key::Space => {
-                let action = engine.handle_space();
+            Key::Semicolon => {
+                let action = engine.handle_semicolon();
                 handle_action(&action, &mut committed_text);
+            }
+            Key::Punctuation(ch) => {
+                let action = engine.handle_punctuation(ch);
+                handle_action(&action, &mut committed_text);
+            }
+            Key::Space => {
+                // 临时英文模式下空格提交
+                if let Some(action) = engine.handle_space_for_temp_english() {
+                    handle_action(&action, &mut committed_text);
+                } else {
+                    let action = engine.handle_space();
+                    handle_action(&action, &mut committed_text);
+                }
             }
             Key::Number(n) => {
                 let action = engine.handle_number(n);
@@ -113,8 +131,7 @@ fn main() {
                 handle_action(&action, &mut committed_text);
             }
             Key::Enter => {
-                if engine.buffer().is_empty() {
-                    // 空编码时 Enter 换行
+                if engine.buffer().is_empty() && engine.mode() == InputMode::Chinese {
                     print!("\r\n");
                     committed_text.clear();
                 } else {
@@ -216,10 +233,14 @@ xx\t纟\t5000
 }
 
 // 终端 raw 模式相关
+use fungewubi::punctuation::PunctuationConverter;
+
 enum Key {
     Char(char),
     Space,
     Number(usize),
+    Semicolon,
+    Punctuation(char),
     Backspace,
     Escape,
     Enter,
@@ -246,7 +267,11 @@ fn read_key() -> Key {
         8 => Key::Backspace,    // Backspace (Linux)
         b'0'..=b'9' => Key::Number((buf[0] - b'0') as usize),
         b'a'..=b'z' => Key::Char(buf[0] as char),
-        b'A'..=b'Z' => Key::Char((buf[0] + 32) as char), // 大写转小写
+        b'A'..=b'Z' => Key::Char(buf[0] as char), // 保留原大写
+        b';' => Key::Semicolon,
+        ch if PunctuationConverter::is_punctuation(ch as char) => {
+            Key::Punctuation(ch as char)
+        }
         _ => Key::Unknown,
     }
 }

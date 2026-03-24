@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::dict::DictEngine;
+use crate::punctuation::PunctuationConverter;
 use crate::user_dict::UserDict;
 
 /// 候选词（统一的对外接口）
@@ -30,6 +31,8 @@ pub enum EngineAction {
 pub enum InputMode {
     Chinese,
     English,
+    /// 临时英文模式（分号引导或大写字母触发，提交后自动回到中文）
+    TempEnglish,
 }
 
 /// 五笔输入引擎
@@ -46,6 +49,10 @@ pub struct InputEngine {
     config: Config,
     /// 输入模式
     mode: InputMode,
+    /// 标点转换器
+    punctuation: PunctuationConverter,
+    /// 临时英文缓冲区（分号引导模式使用）
+    temp_english_buffer: String,
 }
 
 impl InputEngine {
@@ -57,6 +64,8 @@ impl InputEngine {
             user_dict,
             config,
             mode: InputMode::Chinese,
+            punctuation: PunctuationConverter::new(),
+            temp_english_buffer: String::new(),
         }
     }
 
@@ -79,7 +88,7 @@ impl InputEngine {
     pub fn toggle_mode(&mut self) {
         self.mode = match self.mode {
             InputMode::Chinese => InputMode::English,
-            InputMode::English => InputMode::Chinese,
+            InputMode::English | InputMode::TempEnglish => InputMode::Chinese,
         };
         self.reset();
     }
@@ -89,6 +98,13 @@ impl InputEngine {
         // 英文模式直接输出
         if self.mode == InputMode::English {
             return EngineAction::Commit(key.to_string());
+        }
+
+        // 临时英文模式：累积到缓冲区
+        if self.mode == InputMode::TempEnglish {
+            self.temp_english_buffer.push(key);
+            self.buffer = self.temp_english_buffer.clone();
+            return EngineAction::UpdateCandidates;
         }
 
         // 只接受 a-y（五笔有效键）和 z（万能键）
@@ -150,6 +166,22 @@ impl InputEngine {
 
     /// Backspace：删除末位编码
     pub fn handle_backspace(&mut self) -> EngineAction {
+        if self.mode == InputMode::TempEnglish {
+            if self.temp_english_buffer.is_empty() {
+                self.mode = InputMode::Chinese;
+                self.reset();
+                return EngineAction::Reset;
+            }
+            self.temp_english_buffer.pop();
+            if self.temp_english_buffer.is_empty() {
+                self.mode = InputMode::Chinese;
+                self.reset();
+                return EngineAction::Reset;
+            }
+            self.buffer = self.temp_english_buffer.clone();
+            return EngineAction::UpdateCandidates;
+        }
+
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
@@ -166,6 +198,12 @@ impl InputEngine {
 
     /// Escape：清空编码
     pub fn handle_escape(&mut self) -> EngineAction {
+        if self.mode == InputMode::TempEnglish {
+            self.mode = InputMode::Chinese;
+            self.reset();
+            return EngineAction::Reset;
+        }
+
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
@@ -173,8 +211,20 @@ impl InputEngine {
         EngineAction::Reset
     }
 
-    /// Enter：提交编码原文
+    /// Enter：提交编码原文 / 临时英文提交
     pub fn handle_enter(&mut self) -> EngineAction {
+        if self.mode == InputMode::TempEnglish {
+            if self.temp_english_buffer.is_empty() {
+                self.mode = InputMode::Chinese;
+                self.reset();
+                return EngineAction::Reset;
+            }
+            let text = self.temp_english_buffer.clone();
+            self.mode = InputMode::Chinese;
+            self.reset();
+            return EngineAction::Commit(text);
+        }
+
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
@@ -183,10 +233,99 @@ impl InputEngine {
         EngineAction::Commit(text)
     }
 
+    /// 空格键：临时英文模式下提交并回到中文
+    pub fn handle_space_for_temp_english(&mut self) -> Option<EngineAction> {
+        if self.mode != InputMode::TempEnglish {
+            return None;
+        }
+        if self.temp_english_buffer.is_empty() {
+            return Some(EngineAction::Unhandled);
+        }
+        // 临时英文模式下空格提交并回到中文
+        let text = self.temp_english_buffer.clone();
+        self.mode = InputMode::Chinese;
+        self.reset();
+        Some(EngineAction::Commit(text))
+    }
+
+    /// 处理标点符号
+    pub fn handle_punctuation(&mut self, ch: char) -> EngineAction {
+        // 先提交编码缓冲区中的内容（如果有）
+        if !self.buffer.is_empty() && self.mode == InputMode::Chinese {
+            // 有候选时，自动选中第一个候选
+            if !self.candidates.is_empty() {
+                let candidate = self.candidates[0].clone();
+                self.user_dict.boost(&candidate.code, &candidate.text);
+                let committed = candidate.text;
+                self.reset();
+                // 然后转换标点
+                if let Some(punct) = self.punctuation.convert(ch) {
+                    return EngineAction::Commit(format!("{}{}", committed, punct));
+                }
+                return EngineAction::Commit(committed);
+            }
+        }
+
+        if self.mode == InputMode::English {
+            return EngineAction::Commit(ch.to_string());
+        }
+
+        // 中文模式下转换标点
+        if let Some(punct) = self.punctuation.convert(ch) {
+            return EngineAction::Commit(punct);
+        }
+
+        EngineAction::Unhandled
+    }
+
+    /// 分号键：引导临时英文模式（清歌风格）
+    pub fn handle_semicolon(&mut self) -> EngineAction {
+        if self.mode == InputMode::English {
+            return EngineAction::Commit(";".to_string());
+        }
+
+        // 如果编码缓冲区中有内容，分号作为普通标点处理
+        if !self.buffer.is_empty() {
+            return self.handle_punctuation(';');
+        }
+
+        // 进入临时英文模式
+        self.mode = InputMode::TempEnglish;
+        self.temp_english_buffer.clear();
+        self.buffer.clear();
+        EngineAction::UpdateCandidates
+    }
+
+    /// 处理大写字母：进入临时英文模式（首字母大写）
+    pub fn handle_uppercase(&mut self, ch: char) -> EngineAction {
+        if self.mode == InputMode::English {
+            return EngineAction::Commit(ch.to_string());
+        }
+
+        if self.mode == InputMode::TempEnglish {
+            self.temp_english_buffer.push(ch);
+            self.buffer = self.temp_english_buffer.clone();
+            return EngineAction::UpdateCandidates;
+        }
+
+        // 编码缓冲区非空时，先清空
+        if !self.buffer.is_empty() {
+            self.reset();
+        }
+
+        // 进入临时英文模式
+        self.mode = InputMode::TempEnglish;
+        self.temp_english_buffer.clear();
+        self.temp_english_buffer.push(ch);
+        self.buffer = self.temp_english_buffer.clone();
+        EngineAction::UpdateCandidates
+    }
+
     /// 重置状态
     fn reset(&mut self) {
         self.buffer.clear();
         self.candidates.clear();
+        self.temp_english_buffer.clear();
     }
 
     /// 更新候选列表
@@ -379,5 +518,114 @@ gglf\t王\t8000
         assert_eq!(engine.handle_backspace(), EngineAction::Unhandled);
         assert_eq!(engine.handle_escape(), EngineAction::Unhandled);
         assert_eq!(engine.handle_enter(), EngineAction::Unhandled);
+    }
+
+    #[test]
+    fn test_punctuation_chinese_mode() {
+        let mut engine = create_test_engine();
+        let action = engine.handle_punctuation(',');
+        assert_eq!(action, EngineAction::Commit("，".to_string()));
+
+        let action = engine.handle_punctuation('.');
+        assert_eq!(action, EngineAction::Commit("。".to_string()));
+    }
+
+    #[test]
+    fn test_punctuation_english_mode() {
+        let mut engine = create_test_engine();
+        engine.toggle_mode();
+        let action = engine.handle_punctuation(',');
+        assert_eq!(action, EngineAction::Commit(",".to_string()));
+    }
+
+    #[test]
+    fn test_punctuation_with_pending_code() {
+        let mut engine = create_test_engine();
+        engine.handle_key('a');
+        // 输入标点应先提交候选再输出标点
+        let action = engine.handle_punctuation(',');
+        assert_eq!(action, EngineAction::Commit("工，".to_string()));
+        assert!(engine.buffer().is_empty());
+    }
+
+    #[test]
+    fn test_semicolon_temp_english() {
+        let mut engine = create_test_engine();
+        // 分号进入临时英文
+        let action = engine.handle_semicolon();
+        assert_eq!(action, EngineAction::UpdateCandidates);
+        assert_eq!(engine.mode(), InputMode::TempEnglish);
+
+        // 输入英文
+        engine.handle_key('h');
+        engine.handle_key('i');
+        assert_eq!(engine.buffer(), "hi");
+
+        // Enter 提交并回到中文
+        let action = engine.handle_enter();
+        assert_eq!(action, EngineAction::Commit("hi".to_string()));
+        assert_eq!(engine.mode(), InputMode::Chinese);
+    }
+
+    #[test]
+    fn test_uppercase_temp_english() {
+        let mut engine = create_test_engine();
+        // 大写字母进入临时英文
+        let action = engine.handle_uppercase('H');
+        assert_eq!(action, EngineAction::UpdateCandidates);
+        assert_eq!(engine.mode(), InputMode::TempEnglish);
+        assert_eq!(engine.buffer(), "H");
+
+        // 继续输入
+        engine.handle_key('e');
+        engine.handle_key('l');
+        engine.handle_key('l');
+        engine.handle_key('o');
+        assert_eq!(engine.buffer(), "Hello");
+
+        // Enter 提交
+        let action = engine.handle_enter();
+        assert_eq!(action, EngineAction::Commit("Hello".to_string()));
+        assert_eq!(engine.mode(), InputMode::Chinese);
+    }
+
+    #[test]
+    fn test_temp_english_escape() {
+        let mut engine = create_test_engine();
+        engine.handle_semicolon();
+        engine.handle_key('t');
+        engine.handle_key('e');
+
+        // Escape 取消临时英文
+        let action = engine.handle_escape();
+        assert_eq!(action, EngineAction::Reset);
+        assert_eq!(engine.mode(), InputMode::Chinese);
+        assert!(engine.buffer().is_empty());
+    }
+
+    #[test]
+    fn test_temp_english_backspace() {
+        let mut engine = create_test_engine();
+        engine.handle_semicolon();
+        engine.handle_key('a');
+        engine.handle_key('b');
+
+        // Backspace 删除
+        engine.handle_backspace();
+        assert_eq!(engine.buffer(), "a");
+
+        // 继续 Backspace 回到中文
+        engine.handle_backspace();
+        assert_eq!(engine.mode(), InputMode::Chinese);
+    }
+
+    #[test]
+    fn test_paired_punctuation() {
+        let mut engine = create_test_engine();
+        // 引号应交替输出左右
+        let action1 = engine.handle_punctuation('"');
+        assert_eq!(action1, EngineAction::Commit("\u{201c}".to_string()));
+        let action2 = engine.handle_punctuation('"');
+        assert_eq!(action2, EngineAction::Commit("\u{201d}".to_string()));
     }
 }
