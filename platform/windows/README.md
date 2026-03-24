@@ -3,7 +3,7 @@
 ## 技术方案
 
 Windows 输入法使用 TSF (Text Services Framework) 框架：
-- Rust 引擎编译为 `fungewubi.dll`
+- Rust 引擎编译为 `hangewubi.dll`
 - C++ 薄壳实现 ITfTextInputProcessor 接口
 - 注册为 COM 组件
 
@@ -23,10 +23,10 @@ cargo build --release --target x86_64-pc-windows-gnu
 ### 在 Windows 上原生编译
 ```powershell
 cargo build --release
-# 输出: target\release\fungewubi.dll
+# 输出: target\release\hangewubi.dll
 ```
 
 ## 安装
-1. 将 `fungewubi.dll` 复制到 `C:\Program Files\FungeWubi\`
-2. 运行 `regsvr32 fungewubi.dll` 注册 COM 组件
+1. 将 `hangewubi.dll` 复制到 `C:\Program Files\HangeWubi\`
+2. 运行 `regsvr32 hangewubi.dll` 注册 COM 组件
 3. 在设置 > 时间和语言 > 语言中添加输入法

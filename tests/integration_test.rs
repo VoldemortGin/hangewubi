@@ -1,7 +1,7 @@
-use fungewubi::config::Config;
-use fungewubi::dict::DictEngine;
-use fungewubi::engine::{EngineAction, InputEngine};
-use fungewubi::user_dict::UserDict;
+use hangewubi::config::Config;
+use hangewubi::dict::DictEngine;
+use hangewubi::engine::{EngineAction, InputEngine};
+use hangewubi::user_dict::UserDict;
 use std::path::PathBuf;
 
 fn load_real_dict() -> Option<DictEngine> {

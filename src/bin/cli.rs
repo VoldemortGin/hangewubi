@@ -1,7 +1,7 @@
-use fungewubi::config::Config;
-use fungewubi::dict::DictEngine;
-use fungewubi::engine::{EngineAction, InputEngine, InputMode};
-use fungewubi::user_dict::UserDict;
+use hangewubi::config::Config;
+use hangewubi::dict::DictEngine;
+use hangewubi::engine::{EngineAction, InputEngine, InputMode};
+use hangewubi::user_dict::UserDict;
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 
@@ -233,7 +233,7 @@ xx\t纟\t5000
 }
 
 // 终端 raw 模式相关
-use fungewubi::punctuation::PunctuationConverter;
+use hangewubi::punctuation::PunctuationConverter;
 
 enum Key {
     Char(char),

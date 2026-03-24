@@ -7,13 +7,13 @@
     <key>CFBundleDisplayName</key>
     <string>函戈五笔</string>
     <key>CFBundleExecutable</key>
-    <string>FungeWubi</string>
+    <string>HangeWubi</string>
     <key>CFBundleIdentifier</key>
-    <string>com.fungewubi.inputmethod</string>
+    <string>com.hangewubi.inputmethod</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>FungeWubi</string>
+    <string>HangeWubi</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -21,7 +21,7 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>InputMethodConnectionName</key>
-    <string>FungeWubi_Connection</string>
+    <string>HangeWubi_Connection</string>
     <key>InputMethodServerControllerClass</key>
     <string>InputController</string>
     <key>LSBackgroundOnly</key>
@@ -31,6 +31,6 @@
         <string>Hans</string>
     </array>
     <key>tsInputMethodIconFileKey</key>
-    <string>fungewubi</string>
+    <string>hangewubi</string>
 </dict>
 </plist>

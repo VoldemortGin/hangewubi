@@ -1,5 +1,5 @@
 [package]
-name = "fungewubi"
+name = "hangewubi"
 version = "0.1.0"
 edition = "2024"
 description = "函戈五笔 - 高性能五笔输入法引擎"
@@ -16,5 +16,5 @@ toml = "0.8"
 tempfile = "3"
 
 [[bin]]
-name = "fungewubi-cli"
+name = "hangewubi-cli"
 path = "src/bin/cli.rs"

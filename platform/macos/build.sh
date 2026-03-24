@@ -5,7 +5,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/target/macos-app"
-APP_NAME="FungeWubi.app"
+APP_NAME="HangeWubi.app"
 
 echo "=== 构建函戈五笔 macOS 输入法 ==="
 
@@ -28,24 +28,24 @@ swiftc \
     -target arm64-apple-macos14.0 \
     -import-objc-header "$SCRIPT_DIR/BridgingHeader.h" \
     -L "$PROJECT_ROOT/target/release" \
-    -lfungewubi \
+    -lhangewubi \
     -framework InputMethodKit \
     -framework Cocoa \
-    -o "$BUILD_DIR/$APP_NAME/Contents/MacOS/FungeWubi" \
+    -o "$BUILD_DIR/$APP_NAME/Contents/MacOS/HangeWubi" \
     "$SCRIPT_DIR/main.swift" \
     "$SCRIPT_DIR/InputController.swift"
 
 # 4. 复制资源文件
 echo "[4/4] 复制资源..."
-cp "$PROJECT_ROOT/target/release/libfungewubi.dylib" "$BUILD_DIR/$APP_NAME/Contents/MacOS/"
+cp "$PROJECT_ROOT/target/release/libhangewubi.dylib" "$BUILD_DIR/$APP_NAME/Contents/MacOS/"
 cp "$PROJECT_ROOT/data/wubi86.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 cp "$PROJECT_ROOT/data/config.toml" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 
 # 修复 dylib 路径
 install_name_tool -change \
-    "target/release/libfungewubi.dylib" \
-    "@executable_path/libfungewubi.dylib" \
-    "$BUILD_DIR/$APP_NAME/Contents/MacOS/FungeWubi" 2>/dev/null || true
+    "target/release/libhangewubi.dylib" \
+    "@executable_path/libhangewubi.dylib" \
+    "$BUILD_DIR/$APP_NAME/Contents/MacOS/HangeWubi" 2>/dev/null || true
 
 echo ""
 echo "=== 构建完成 ==="

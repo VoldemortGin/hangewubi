@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component>
-    <name>com.fungewubi.ibus</name>
+    <name>com.hangewubi.ibus</name>
     <description>函戈五笔输入法</description>
-    <exec>/usr/lib/ibus-fungewubi/ibus-engine-fungewubi --ibus</exec>
+    <exec>/usr/lib/ibus-hangewubi/ibus-engine-hangewubi --ibus</exec>
     <version>0.1.0</version>
-    <author>FungeWubi</author>
+    <author>HangeWubi</author>
     <license>MIT</license>
-    <homepage>https://github.com/VoldemortGin/fungewubi</homepage>
-    <textdomain>ibus-fungewubi</textdomain>
+    <homepage>https://github.com/VoldemortGin/hangewubi</homepage>
+    <textdomain>ibus-hangewubi</textdomain>
     <engines>
         <engine>
-            <name>fungewubi</name>
+            <name>hangewubi</name>
             <language>zh</language>
             <license>MIT</license>
-            <author>FungeWubi</author>
-            <icon>/usr/share/ibus-fungewubi/icon.png</icon>
+            <author>HangeWubi</author>
+            <icon>/usr/share/ibus-hangewubi/icon.png</icon>
             <layout>us</layout>
             <longname>函戈五笔</longname>
             <description>基于 Rust 的高性能五笔输入法</description>

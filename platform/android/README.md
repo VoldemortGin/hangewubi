@@ -4,7 +4,7 @@
 
 Android 输入法通过 InputMethodService 集成：
 - Rust 引擎通过 JNI 或 UniFFI 桥接到 Kotlin/Java
-- 交叉编译为 `libfungewubi.so` (aarch64-linux-android)
+- 交叉编译为 `libhangewubi.so` (aarch64-linux-android)
 - Kotlin 壳实现 InputMethodService
 
 ## 构建步骤
@@ -27,7 +27,7 @@ cargo build --release --target aarch64-linux-android
 
 ### Android Studio 项目
 在 `platform/android/app/` 下创建标准 Android InputMethodService 项目，
-通过 JNI 加载 `libfungewubi.so`。
+通过 JNI 加载 `libhangewubi.so`。
 
 ## JNI 桥接
 

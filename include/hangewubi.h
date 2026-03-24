@@ -1,8 +1,8 @@
 // 函戈五笔 C FFI 头文件
 // 自动生成 - 请勿手动编辑
 
-#ifndef FUNGEWUBI_H
-#define FUNGEWUBI_H
+#ifndef HANGEWUBI_H
+#define HANGEWUBI_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -71,4 +71,4 @@ void ffi_free_candidate_list(FfiCandidateList list);
 }
 #endif
 
-#endif // FUNGEWUBI_H
+#endif // HANGEWUBI_H
