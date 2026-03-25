@@ -50,6 +50,11 @@ FfiResult ffi_handle_escape(void);
 FfiResult ffi_handle_enter(void);
 FfiResult ffi_handle_punctuation(char ch);
 FfiResult ffi_handle_semicolon(void);
+FfiResult ffi_handle_quote(void);
+
+// 翻页
+FfiResult ffi_next_page(void);
+FfiResult ffi_prev_page(void);
 
 // 模式管理
 void ffi_toggle_mode(void);
@@ -58,6 +63,11 @@ uint8_t ffi_get_mode(void);  // 0=中文, 1=英文, 2=临时英文
 // 状态查询
 char *ffi_get_buffer(void);  // 需要 ffi_free_string 释放
 FfiCandidateList ffi_get_candidates(void);  // 需要 ffi_free_candidate_list 释放
+
+// 配置更新
+void ffi_set_config(bool auto_commit_unique_4, bool auto_commit_first_5,
+                    uint8_t enter_key_action, uint8_t empty_code_action,
+                    uint8_t candidate_count);
 
 // 用户词典
 void ffi_add_user_word(const char *code, const char *text);

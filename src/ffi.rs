@@ -169,6 +169,24 @@ pub extern "C" fn ffi_handle_semicolon() -> FfiResult {
     with_engine(|e| action_to_ffi(e.handle_semicolon()))
 }
 
+/// 处理单引号键（选第三候选）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_handle_quote() -> FfiResult {
+    with_engine(|e| action_to_ffi(e.handle_quote()))
+}
+
+/// 下一页
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_next_page() -> FfiResult {
+    with_engine(|e| action_to_ffi(e.next_page()))
+}
+
+/// 上一页
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_prev_page() -> FfiResult {
+    with_engine(|e| action_to_ffi(e.prev_page()))
+}
+
 /// 切换中英文模式
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_toggle_mode() {
@@ -257,6 +275,26 @@ pub extern "C" fn ffi_free_candidate_list(list: FfiCandidateList) {
             }
         }
     }
+}
+
+/// 更新引擎配置
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_config(
+    auto_commit_unique_4: bool,
+    auto_commit_first_5: bool,
+    enter_key_action: u8,
+    empty_code_action: u8,
+    candidate_count: u8,
+) {
+    with_engine(|e| {
+        e.set_config(
+            auto_commit_unique_4,
+            auto_commit_first_5,
+            enter_key_action,
+            empty_code_action,
+            candidate_count as usize,
+        );
+    });
 }
 
 /// 添加用户词条

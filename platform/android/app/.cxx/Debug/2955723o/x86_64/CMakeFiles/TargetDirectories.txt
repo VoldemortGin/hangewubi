@@ -1,0 +1,3 @@
+/Users/linhan/startup/hangewubi/platform/android/app/.cxx/Debug/2955723o/x86_64/CMakeFiles/hangewubi_jni.dir
+/Users/linhan/startup/hangewubi/platform/android/app/.cxx/Debug/2955723o/x86_64/CMakeFiles/edit_cache.dir
+/Users/linhan/startup/hangewubi/platform/android/app/.cxx/Debug/2955723o/x86_64/CMakeFiles/rebuild_cache.dir

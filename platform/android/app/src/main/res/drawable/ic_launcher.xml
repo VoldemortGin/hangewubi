@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+
+    <!-- Simplified "函" character strokes as a logo -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,14 L34,14 L34,16 L14,16 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M16,16 L16,34 L18,34 L18,16 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,16 L30,34 L32,34 L32,16 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M18,24 L30,24 L30,26 L18,26 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,16 L22,34 L24,34 L24,16 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M26,16 L26,34 L28,34 L28,16 Z" />
+</vector>

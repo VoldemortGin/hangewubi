@@ -1,0 +1,12 @@
+R_DEF: Internal format may change without notice
+local
+drawable ic_launcher
+id candidate_view
+id keyboard_view
+layout candidate_view
+layout keyboard_view
+string app_name
+string ime_name
+string subtype_wubi
+style AppTheme
+xml method

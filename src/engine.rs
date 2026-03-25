@@ -39,7 +39,7 @@ pub enum InputMode {
 pub struct InputEngine {
     /// 当前编码缓冲区
     buffer: String,
-    /// 当前候选列表
+    /// 当前候选列表（存储所有匹配结果，分页展示）
     candidates: Vec<Candidate>,
     /// 码表引擎
     dict: DictEngine,
@@ -53,6 +53,8 @@ pub struct InputEngine {
     punctuation: PunctuationConverter,
     /// 临时英文缓冲区（分号引导模式使用）
     temp_english_buffer: String,
+    /// 当前页码（从 0 开始）
+    current_page: usize,
 }
 
 impl InputEngine {
@@ -66,6 +68,7 @@ impl InputEngine {
             mode: InputMode::Chinese,
             punctuation: PunctuationConverter::new(),
             temp_english_buffer: String::new(),
+            current_page: 0,
         }
     }
 
@@ -74,9 +77,16 @@ impl InputEngine {
         &self.buffer
     }
 
-    /// 获取当前候选列表
+    /// 获取当前页候选列表
     pub fn candidates(&self) -> &[Candidate] {
-        &self.candidates
+        let page_size = self.config.candidate_count;
+        let start = self.current_page * page_size;
+        let end = (start + page_size).min(self.candidates.len());
+        if start >= self.candidates.len() {
+            &[]
+        } else {
+            &self.candidates[start..end]
+        }
     }
 
     /// 获取当前输入模式
@@ -127,21 +137,51 @@ impl InputEngine {
             return EngineAction::Commit(text);
         }
 
-        // 四码无匹配，自动清空
-        if self.buffer.len() == 4 && self.candidates.is_empty() {
+        // 五码首选自动上屏
+        if self.config.auto_commit_first_five
+            && self.buffer.len() == 5
+            && !self.candidates.is_empty()
+        {
+            let text = self.candidates[0].text.clone();
+            let code = self.candidates[0].code.clone();
+            self.user_dict.boost(&code, &text);
             self.reset();
-            return EngineAction::Reset;
+            return EngineAction::Commit(text);
+        }
+
+        // 四码无匹配
+        if self.buffer.len() == 4 && self.candidates.is_empty() {
+            match self.config.empty_code_action {
+                0 => {
+                    // 转临时英文模式
+                    self.reset();
+                    return EngineAction::Reset;
+                }
+                1 => {
+                    // 提示音（返回 UpdateCandidates，客户端可 beep）
+                    self.buffer.pop();
+                    self.update_candidates();
+                    return EngineAction::UpdateCandidates;
+                }
+                _ => {
+                    // 不处理：回退最后一码
+                    self.buffer.pop();
+                    self.update_candidates();
+                    return EngineAction::UpdateCandidates;
+                }
+            }
         }
 
         EngineAction::UpdateCandidates
     }
 
-    /// 空格键：选择第一个候选
+    /// 空格键：选择当前页第一个候选
     pub fn handle_space(&mut self) -> EngineAction {
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
-        self.select_candidate(0)
+        let index = self.current_page * self.config.candidate_count;
+        self.select_candidate(index)
     }
 
     /// 数字键选择候选 (1-9)
@@ -149,7 +189,8 @@ impl InputEngine {
         if self.buffer.is_empty() || num == 0 {
             return EngineAction::Unhandled;
         }
-        self.select_candidate(num - 1)
+        let index = self.current_page * self.config.candidate_count + (num - 1);
+        self.select_candidate(index)
     }
 
     /// 选择候选词
@@ -228,9 +269,23 @@ impl InputEngine {
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
-        let text = self.buffer.clone();
-        self.reset();
-        EngineAction::Commit(text)
+        match self.config.enter_key_action {
+            0 => {
+                // 输出编码原文
+                let text = self.buffer.clone();
+                self.reset();
+                EngineAction::Commit(text)
+            }
+            1 => {
+                // 清除编码
+                self.reset();
+                EngineAction::Reset
+            }
+            _ => {
+                // 不处理
+                EngineAction::Unhandled
+            }
+        }
     }
 
     /// 空格键：临时英文模式下提交并回到中文
@@ -252,9 +307,10 @@ impl InputEngine {
     pub fn handle_punctuation(&mut self, ch: char) -> EngineAction {
         // 先提交编码缓冲区中的内容（如果有）
         if !self.buffer.is_empty() && self.mode == InputMode::Chinese {
-            // 有候选时，自动选中第一个候选
-            if !self.candidates.is_empty() {
-                let candidate = self.candidates[0].clone();
+            // 有候选时，自动选中当前页第一个候选
+            let page_first = self.current_page * self.config.candidate_count;
+            if page_first < self.candidates.len() {
+                let candidate = self.candidates[page_first].clone();
                 self.user_dict.boost(&candidate.code, &candidate.text);
                 let committed = candidate.text;
                 self.reset();
@@ -278,14 +334,19 @@ impl InputEngine {
         EngineAction::Unhandled
     }
 
-    /// 分号键：引导临时英文模式（清歌风格）
+    /// 分号键：编码非空时选第二候选，否则引导临时英文模式
     pub fn handle_semicolon(&mut self) -> EngineAction {
         if self.mode == InputMode::English {
             return EngineAction::Commit(";".to_string());
         }
 
-        // 如果编码缓冲区中有内容，分号作为普通标点处理
+        // 如果编码缓冲区中有内容，选择当前页第二个候选
         if !self.buffer.is_empty() {
+            let index = self.current_page * self.config.candidate_count + 1;
+            if index < self.candidates.len() {
+                return self.select_candidate(index);
+            }
+            // 候选不足 2 个，按标点处理
             return self.handle_punctuation(';');
         }
 
@@ -294,6 +355,47 @@ impl InputEngine {
         self.temp_english_buffer.clear();
         self.buffer.clear();
         EngineAction::UpdateCandidates
+    }
+
+    /// 单引号键：编码非空时选第三候选
+    pub fn handle_quote(&mut self) -> EngineAction {
+        if self.mode == InputMode::English {
+            return EngineAction::Commit("'".to_string());
+        }
+
+        if !self.buffer.is_empty() {
+            let index = self.current_page * self.config.candidate_count + 2;
+            if index < self.candidates.len() {
+                return self.select_candidate(index);
+            }
+            // 候选不足 3 个，不处理
+            return EngineAction::Unhandled;
+        }
+
+        // 缓冲区为空，作为标点处理
+        self.handle_punctuation('\'')
+    }
+
+    /// 下一页
+    pub fn next_page(&mut self) -> EngineAction {
+        let page_size = self.config.candidate_count;
+        let next_start = (self.current_page + 1) * page_size;
+        if next_start < self.candidates.len() {
+            self.current_page += 1;
+            EngineAction::UpdateCandidates
+        } else {
+            EngineAction::Unhandled
+        }
+    }
+
+    /// 上一页
+    pub fn prev_page(&mut self) -> EngineAction {
+        if self.current_page > 0 {
+            self.current_page -= 1;
+            EngineAction::UpdateCandidates
+        } else {
+            EngineAction::Unhandled
+        }
     }
 
     /// 处理大写字母：进入临时英文模式（首字母大写）
@@ -326,15 +428,20 @@ impl InputEngine {
         self.buffer.clear();
         self.candidates.clear();
         self.temp_english_buffer.clear();
+        self.current_page = 0;
     }
 
     /// 更新候选列表
     fn update_candidates(&mut self) {
         self.candidates.clear();
+        self.current_page = 0;
 
         if self.buffer.is_empty() {
             return;
         }
+
+        // 最多存储的候选数（支持多页翻页）
+        let max_candidates = 50;
 
         // 先查用户词典
         let user_entries = self.user_dict.lookup(&self.buffer);
@@ -351,7 +458,7 @@ impl InputEngine {
         let dict_entries = self.dict.lookup(
             &self.buffer,
             self.config.wildcard_z_enabled,
-            self.config.candidate_count * 2, // 多取一些，合并后再截断
+            max_candidates, // 取更多候选以支持翻页
         );
         let buffer_len = self.buffer.len();
         for entry in dict_entries {
@@ -370,8 +477,23 @@ impl InputEngine {
 
         // 按权重排序（精确匹配因加成自然排前面）
         self.candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
-        self.candidates
-            .truncate(self.config.candidate_count);
+        self.candidates.truncate(max_candidates);
+    }
+
+    /// 更新配置（运行时由 FFI 调用）
+    pub fn set_config(
+        &mut self,
+        auto_commit_unique_4: bool,
+        auto_commit_first_5: bool,
+        enter_key_action: u8,
+        empty_code_action: u8,
+        candidate_count: usize,
+    ) {
+        self.config.auto_commit_on_unique_four = auto_commit_unique_4;
+        self.config.auto_commit_first_five = auto_commit_first_5;
+        self.config.enter_key_action = enter_key_action;
+        self.config.empty_code_action = empty_code_action;
+        self.config.candidate_count = candidate_count;
     }
 
     /// 获取用户词典引用（用于保存等操作）

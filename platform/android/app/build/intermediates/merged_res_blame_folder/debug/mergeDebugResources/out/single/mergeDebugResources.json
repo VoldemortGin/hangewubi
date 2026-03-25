@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "com.hangewubi.ime.app-debug-33:/layout_candidate_view.xml.flat",
+        "source": "com.hangewubi.ime.app-main-35:/layout/candidate_view.xml"
+    },
+    {
+        "merged": "com.hangewubi.ime.app-debug-33:/layout_keyboard_view.xml.flat",
+        "source": "com.hangewubi.ime.app-main-35:/layout/keyboard_view.xml"
+    },
+    {
+        "merged": "com.hangewubi.ime.app-debug-33:/xml_method.xml.flat",
+        "source": "com.hangewubi.ime.app-main-35:/xml/method.xml"
+    },
+    {
+        "merged": "com.hangewubi.ime.app-debug-33:/drawable_ic_launcher.xml.flat",
+        "source": "com.hangewubi.ime.app-main-35:/drawable/ic_launcher.xml"
+    }
+]

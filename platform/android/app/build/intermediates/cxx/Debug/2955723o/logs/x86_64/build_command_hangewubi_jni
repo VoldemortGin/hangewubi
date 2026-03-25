@@ -1,0 +1,4 @@
+/Users/linhan/Library/Android/sdk/cmake/3.22.1/bin/ninja \
+  -C \
+  /Users/linhan/startup/hangewubi/platform/android/app/.cxx/Debug/2955723o/x86_64 \
+  hangewubi_jni
