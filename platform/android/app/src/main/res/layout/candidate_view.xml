@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- CandidateView is a custom View drawn via Canvas, so this layout
+     is provided only as a convenience wrapper if needed in the future. -->
+<com.hangewubi.ime.CandidateView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/candidate_view"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" />

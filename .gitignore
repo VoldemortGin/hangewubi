@@ -2,3 +2,4 @@
 .DS_Store
 data/user_dict.json
 ci-logs/
+.env

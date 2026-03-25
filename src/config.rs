@@ -19,6 +19,18 @@ pub struct Config {
     #[serde(default = "default_true")]
     pub phrase_first: bool,
 
+    /// 五码首选自动上屏
+    #[serde(default = "default_true")]
+    pub auto_commit_first_five: bool,
+
+    /// Enter 键行为：0=输出编码, 1=清除, 2=不处理
+    #[serde(default)]
+    pub enter_key_action: u8,
+
+    /// 空码行为：0=转临时英文, 1=提示音, 2=不处理
+    #[serde(default)]
+    pub empty_code_action: u8,
+
     /// 码表文件路径
     #[serde(default)]
     pub dict_path: Option<PathBuf>,
@@ -43,6 +55,9 @@ impl Default for Config {
             auto_commit_on_unique_four: true,
             wildcard_z_enabled: true,
             phrase_first: true,
+            auto_commit_first_five: true,
+            enter_key_action: 0,
+            empty_code_action: 0,
             dict_path: None,
             user_dict_path: None,
         }
