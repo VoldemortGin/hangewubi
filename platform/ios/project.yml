@@ -8,6 +8,8 @@ options:
 settings:
   base:
     DEVELOPMENT_TEAM: 7H7QT6A3TG
+    SUPPORTED_PLATFORMS: iphoneos iphonesimulator
+    SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
 
 targets:
   HangeWubi:
@@ -43,6 +45,16 @@ targets:
       - path: ../../data/config.toml
     info:
       path: HangeWubiKeyboard/Info.plist
+      properties:
+        CFBundleDisplayName: 晗戈五笔
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.keyboard-service
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).KeyboardViewController"
+          NSExtensionAttributes:
+            IsASCIICapable: false
+            PrefersRightToLeft: false
+            PrimaryLanguage: zh-Hans
+            RequestsOpenAccess: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hangewubi.app.keyboard
