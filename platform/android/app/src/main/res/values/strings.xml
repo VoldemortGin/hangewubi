@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">函戈五笔</string>
-    <string name="ime_name">函戈五笔</string>
+    <string name="app_name">晗戈五笔</string>
+    <string name="ime_name">晗戈五笔</string>
     <string name="subtype_wubi">五笔86</string>
 </resources>

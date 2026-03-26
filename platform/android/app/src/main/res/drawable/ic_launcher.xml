@@ -10,7 +10,7 @@
         android:fillColor="#1565C0"
         android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
 
-    <!-- Simplified "函" character strokes as a logo -->
+    <!-- Simplified "晗" character strokes as a logo -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M14,14 L34,14 L34,16 L14,16 Z" />

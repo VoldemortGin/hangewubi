@@ -6,15 +6,15 @@
     <string>com.hangewubi.ci-watch</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/linhan/startup/函戈五笔/ci-watch.sh</string>
+        <string>/Users/linhan/startup/晗戈五笔/ci-watch.sh</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/linhan/startup/函戈五笔</string>
+    <string>/Users/linhan/startup/晗戈五笔</string>
     <key>StartInterval</key>
     <integer>300</integer>
     <key>StandardOutPath</key>
-    <string>/Users/linhan/startup/函戈五笔/ci-logs/launchd.log</string>
+    <string>/Users/linhan/startup/晗戈五笔/ci-logs/launchd.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/linhan/startup/函戈五笔/ci-logs/launchd.log</string>
+    <string>/Users/linhan/startup/晗戈五笔/ci-logs/launchd.log</string>
 </dict>
 </plist>

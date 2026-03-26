@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 函戈五笔 Linux 安装脚本
+# 晗戈五笔 Linux 安装脚本
 # 需要 root 权限 (sudo)
 set -euo pipefail
 
@@ -12,7 +12,7 @@ SHARE_DIR="$PREFIX/share/ibus-hangewubi"
 DATA_DIR="$SHARE_DIR/data"
 COMPONENT_DIR="$PREFIX/share/ibus/component"
 
-echo "=== 函戈五笔 Linux 安装 ==="
+echo "=== 晗戈五笔 Linux 安装 ==="
 echo "安装前缀: $PREFIX"
 
 # 检查是否以 root 运行（安装到 /usr 时需要）
@@ -99,7 +99,7 @@ if command -v ibus &>/dev/null; then
     ibus restart &>/dev/null || true
     echo "IBus 已重启"
     echo ""
-    echo "请在系统设置中添加「函戈五笔」输入法"
+    echo "请在系统设置中添加「晗戈五笔」输入法"
     echo "  或运行: ibus engine hangewubi"
 else
     echo "IBus 未安装或不在 PATH 中，请手动重启 IBus"

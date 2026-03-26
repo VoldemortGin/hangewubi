@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 fn main() {
     println!("╔══════════════════════════════════════╗");
-    println!("║        函戈五笔 v0.1.0               ║");
+    println!("║        晗戈五笔 v0.1.0               ║");
     println!("║   FungeWubi Input Method Engine       ║");
     println!("╚══════════════════════════════════════╝");
     println!();

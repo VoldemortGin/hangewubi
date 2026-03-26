@@ -38,7 +38,7 @@ static const GUID GUID_HangeWubiCandidateUI = {
 #define HANGEWUBI_LANGID    MAKELANGID(LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED)
 
 // Display name
-#define HANGEWUBI_DISPLAY_NAME      L"\x51FD\x6208\x4E94\x7B14"  // 函戈五笔
+#define HANGEWUBI_DISPLAY_NAME      L"\x6657\x6208\x4E94\x7B14"  // 晗戈五笔
 #define HANGEWUBI_DISPLAY_NAME_EN   L"HangeWubi"
 
 // Global reference count for DLL unloading

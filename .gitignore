@@ -3,3 +3,7 @@
 data/user_dict.json
 ci-logs/
 .env
+*.csr
+*.key
+*.cer
+*.p12

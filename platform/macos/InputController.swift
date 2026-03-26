@@ -204,7 +204,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 600, height: 550),
                    styleMask: [.titled, .closable],
                    backing: .buffered, defer: true)
-        self.title = "函戈五笔 设置"
+        self.title = "晗戈五笔 设置"
         self.isReleasedWhenClosed = false
         self.center()
         setupUI()
@@ -375,7 +375,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
         view.addSubview(iconView)
 
         // App name
-        let nameLabel = NSTextField(labelWithString: "函戈五笔")
+        let nameLabel = NSTextField(labelWithString: "晗戈五笔")
         nameLabel.font = NSFont.boldSystemFont(ofSize: 28)
         nameLabel.alignment = .center
         nameLabel.frame = NSRect(x: 150, y: 300, width: 300, height: 36)
@@ -850,7 +850,7 @@ class ModeIndicatorWindow: NSPanel {
 
 // MARK: - Input Controller
 
-/// 函戈五笔 macOS 输入法控制器
+/// 晗戈五笔 macOS 输入法控制器
 /// 通过 C FFI 调用 Rust 引擎
 @objc(InputController)
 class InputController: IMKInputController {
@@ -907,7 +907,7 @@ class InputController: IMKInputController {
 
         menu.addItem(NSMenuItem.separator())
 
-        let aboutItem = NSMenuItem(title: "关于函戈五笔", action: #selector(showAbout(_:)), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "关于晗戈五笔", action: #selector(showAbout(_:)), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
@@ -920,7 +920,7 @@ class InputController: IMKInputController {
 
     @objc private func showAbout(_ sender: Any?) {
         let alert = NSAlert()
-        alert.messageText = "函戈五笔"
+        alert.messageText = "晗戈五笔"
         alert.informativeText = "版本 0.1.0\n基于 Rust 引擎的五笔输入法"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
