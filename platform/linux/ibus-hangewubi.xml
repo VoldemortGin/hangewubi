@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <component>
     <name>com.hangewubi.ibus</name>
-    <description>函戈五笔输入法</description>
+    <description>晗戈五笔输入法</description>
     <exec>/usr/lib/ibus-hangewubi/ibus-engine-hangewubi --ibus</exec>
     <version>0.1.0</version>
     <author>HangeWubi</author>
@@ -16,7 +16,7 @@
             <author>HangeWubi</author>
             <icon>/usr/share/ibus-hangewubi/icon.png</icon>
             <layout>us</layout>
-            <longname>函戈五笔</longname>
+            <longname>晗戈五笔</longname>
             <description>基于 Rust 的高性能五笔输入法</description>
             <rank>99</rank>
             <symbol>五</symbol>

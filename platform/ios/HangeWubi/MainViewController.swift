@@ -5,7 +5,7 @@ class MainViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        title = "函戈五笔"
+        title = "晗戈五笔"
         view.backgroundColor = .systemGroupedBackground
 
         let scrollView = UIScrollView()
@@ -31,14 +31,14 @@ class MainViewController: UIViewController {
 
         // App icon / title area
         let iconLabel = UILabel()
-        iconLabel.text = "函"
+        iconLabel.text = "晗"
         iconLabel.font = UIFont.systemFont(ofSize: 64, weight: .bold)
         iconLabel.textAlignment = .center
         iconLabel.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(iconLabel)
 
         let titleLabel = UILabel()
-        titleLabel.text = "函戈五笔"
+        titleLabel.text = "晗戈五笔"
         titleLabel.font = UIFont.systemFont(ofSize: 28, weight: .bold)
         titleLabel.textAlignment = .center
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -67,7 +67,7 @@ class MainViewController: UIViewController {
             "1. 打开「设置」应用",
             "2. 进入「通用」→「键盘」→「键盘」",
             "3. 点击「添加新键盘...」",
-            "4. 在第三方键盘中选择「函戈五笔」",
+            "4. 在第三方键盘中选择「晗戈五笔」",
         ]
 
         let stepsLabel = UILabel()
@@ -90,7 +90,7 @@ class MainViewController: UIViewController {
 
         // Description
         let descLabel = UILabel()
-        descLabel.text = "函戈五笔是一款开源的五笔输入法，基于 86 版五笔编码，支持自动上屏、候选词选择等功能。所有数据均在本地处理，不需要网络权限。"
+        descLabel.text = "晗戈五笔是一款开源的五笔输入法，基于 86 版五笔编码，支持自动上屏、候选词选择等功能。所有数据均在本地处理，不需要网络权限。"
         descLabel.font = UIFont.systemFont(ofSize: 14)
         descLabel.textColor = .secondaryLabel
         descLabel.numberOfLines = 0

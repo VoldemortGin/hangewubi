@@ -2,7 +2,7 @@
 name = "hangewubi"
 version = "0.1.0"
 edition = "2024"
-description = "函戈五笔 - 高性能五笔输入法引擎"
+description = "晗戈五笔 - 高性能五笔输入法引擎"
 license = "MIT"
 authors = ["林晗 <gin.linhan@gmail.com>"]
 

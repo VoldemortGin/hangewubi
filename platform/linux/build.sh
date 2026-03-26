@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 函戈五笔 Linux 构建脚本
+# 晗戈五笔 Linux 构建脚本
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-echo "=== 函戈五笔 Linux 构建 ==="
+echo "=== 晗戈五笔 Linux 构建 ==="
 echo "项目根目录: $PROJECT_ROOT"
 
 # 检查依赖

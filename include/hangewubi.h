@@ -1,4 +1,4 @@
-// 函戈五笔 C FFI 头文件
+// 晗戈五笔 C FFI 头文件
 // 自动生成 - 请勿手动编辑
 
 #ifndef HANGEWUBI_H

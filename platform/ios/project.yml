@@ -1,0 +1,65 @@
+name: HangeWubi
+options:
+  bundleIdPrefix: com.hangewubi
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "16.4"
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: 7H7QT6A3TG
+
+targets:
+  HangeWubi:
+    type: application
+    platform: iOS
+    sources:
+      - path: HangeWubi
+    info:
+      path: HangeWubi/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hangewubi.app
+        INFOPLIST_FILE: HangeWubi/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: HangeWubi/HangeWubi.entitlements
+    dependencies:
+      - target: HangeWubiKeyboard
+
+  HangeWubiKeyboard:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: HangeWubiKeyboard
+    resources:
+      - path: ../../data/wubi86.txt
+      - path: ../../data/config.toml
+    info:
+      path: HangeWubiKeyboard/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hangewubi.app.keyboard
+        PRODUCT_NAME: HangeWubiKeyboard
+        INFOPLIST_FILE: HangeWubiKeyboard/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: HangeWubiKeyboard/HangeWubiKeyboard.entitlements
+        SWIFT_OBJC_BRIDGING_HEADER: HangeWubiKeyboard/BridgingHeader.h
+        LIBRARY_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release"
+          - "$(PROJECT_DIR)/../../target/aarch64-apple-ios/debug"
+          - "$(PROJECT_DIR)/../../target/aarch64-apple-ios-sim/release"
+          - "$(PROJECT_DIR)/../../target/aarch64-apple-ios-sim/debug"
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(PROJECT_DIR)/../../include"
+        OTHER_LDFLAGS:
+          - "-lhangewubi"
+    dependencies: []

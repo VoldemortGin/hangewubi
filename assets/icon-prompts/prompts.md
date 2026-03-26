@@ -1,29 +1,29 @@
-# 函戈五笔 Icon 生成提示词
+# 晗戈五笔 Icon 生成提示词
 
 ## 核心概念
-- 品牌名：函戈五笔 (HangeWubi)
-- "函"字是品牌标识，也是菜单栏图标
+- 品牌名：晗戈五笔 (HangeWubi)
+- "晗"字是品牌标识，也是菜单栏图标
 - 五笔 = 五种笔画输入法
 - Rust 引擎 = 高性能、现代
 - 风格：简洁、现代、专业
 
 ---
 
-## 方案 A：以"函"字为核心
+## 方案 A：以"晗"字为核心
 
 ### A1 - 极简汉字
 ```
-A minimal, modern app icon featuring the Chinese character "函" centered on a soft rounded square background with a gradient from #2563EB (blue) to #1E40AF (dark blue). The character is in clean white, using a modern sans-serif Chinese typeface. Subtle shadow beneath the character. macOS app icon style, 1024x1024, clean vector look.
+A minimal, modern app icon featuring the Chinese character "晗" centered on a soft rounded square background with a gradient from #2563EB (blue) to #1E40AF (dark blue). The character is in clean white, using a modern sans-serif Chinese typeface. Subtle shadow beneath the character. macOS app icon style, 1024x1024, clean vector look.
 ```
 
 ### A2 - 汉字 + 键盘元素
 ```
-A sleek app icon: the Chinese character "函" in bold white, placed on a rounded square with a deep blue (#1E3A8A) to teal (#0D9488) gradient. A minimal keyboard key outline subtly frames the character from below, suggesting an input method. macOS Big Sur icon style, 3D-like with soft lighting, 1024x1024.
+A sleek app icon: the Chinese character "晗" in bold white, placed on a rounded square with a deep blue (#1E3A8A) to teal (#0D9488) gradient. A minimal keyboard key outline subtly frames the character from below, suggesting an input method. macOS Big Sur icon style, 3D-like with soft lighting, 1024x1024.
 ```
 
 ### A3 - 汉字印章风格
 ```
-A modern app icon inspired by Chinese seal carving (篆刻). The character "函" is rendered in a traditional seal script style, white on a vermillion red (#DC2626) rounded square. Clean, minimal, with a subtle paper texture. The seal aesthetic meets modern app design. macOS icon, 1024x1024.
+A modern app icon inspired by Chinese seal carving (篆刻). The character "晗" is rendered in a traditional seal script style, white on a vermillion red (#DC2626) rounded square. Clean, minimal, with a subtle paper texture. The seal aesthetic meets modern app design. macOS icon, 1024x1024.
 ```
 
 ---
@@ -46,12 +46,12 @@ A sophisticated app icon: a single elegant Chinese calligraphy brush stroke form
 
 ### C1 - 极简键盘
 ```
-A clean app icon showing a minimal keyboard key with the character "函" on it. Rounded square background in soft blue (#3B82F6). The key has a subtle 3D effect with light top edge and shadow. Modern flat design with depth. macOS Big Sur style icon, 1024x1024.
+A clean app icon showing a minimal keyboard key with the character "晗" on it. Rounded square background in soft blue (#3B82F6). The key has a subtle 3D effect with light top edge and shadow. Modern flat design with depth. macOS Big Sur style icon, 1024x1024.
 ```
 
 ### C2 - 光标 + 汉字
 ```
-A minimal app icon: a text cursor (blinking caret line) next to the Chinese character "函", both in white, on a rounded square with a smooth gradient from #2563EB to #7C3AED (blue to purple). Clean, modern, represents text input. macOS icon style, 1024x1024.
+A minimal app icon: a text cursor (blinking caret line) next to the Chinese character "晗", both in white, on a rounded square with a smooth gradient from #2563EB to #7C3AED (blue to purple). Clean, modern, represents text input. macOS icon style, 1024x1024.
 ```
 
 ---
@@ -60,7 +60,7 @@ A minimal app icon: a text cursor (blinking caret line) next to the Chinese char
 
 ### D1 - 五边形
 ```
-A geometric app icon featuring a regular pentagon (representing the "five" in 五笔/Wubi) with the character "函" centered inside. The pentagon has a blue (#2563EB) gradient fill, white character, on a white rounded square with subtle shadow. Minimal, symbolic. macOS icon, 1024x1024.
+A geometric app icon featuring a regular pentagon (representing the "five" in 五笔/Wubi) with the character "晗" centered inside. The pentagon has a blue (#2563EB) gradient fill, white character, on a white rounded square with subtle shadow. Minimal, symbolic. macOS icon, 1024x1024.
 ```
 
 ### D2 - 方块拼字

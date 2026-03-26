@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== 函戈五笔 本地 CI ==="
+echo "=== 晗戈五笔 本地 CI ==="
 
 echo ""
 echo "[1/3] 运行全部测试..."

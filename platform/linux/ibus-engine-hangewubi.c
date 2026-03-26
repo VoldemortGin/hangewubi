@@ -1,5 +1,5 @@
 /*
- * 函戈五笔 IBus 引擎
+ * 晗戈五笔 IBus 引擎
  * 薄 C 层：调用 libhangewubi.so 的 C FFI 接口
  */
 
@@ -403,7 +403,7 @@ ibus_register(void)
 {
     IBusComponent *component = ibus_component_new(
         "com.hangewubi.ibus",                  /* name */
-        "函戈五笔输入法",                        /* description */
+        "晗戈五笔输入法",                        /* description */
         "0.1.0",                                /* version */
         "MIT",                                  /* license */
         "HangeWubi",                            /* author */
@@ -414,7 +414,7 @@ ibus_register(void)
 
     IBusEngineDesc *desc = ibus_engine_desc_new(
         "hangewubi",                            /* name */
-        "函戈五笔",                              /* longname */
+        "晗戈五笔",                              /* longname */
         "基于 Rust 的高性能五笔输入法",            /* description */
         "zh",                                   /* language */
         "MIT",                                  /* license */
@@ -450,7 +450,7 @@ main(int argc, char **argv)
     /* 构建码表路径 */
     gchar *dict_path = g_build_filename(data_dir, "wubi86.txt", NULL);
 
-    g_message("函戈五笔 IBus 引擎启动");
+    g_message("晗戈五笔 IBus 引擎启动");
     g_message("数据目录: %s", data_dir);
     g_message("码表路径: %s", dict_path);
 

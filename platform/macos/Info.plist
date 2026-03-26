@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>zh-Hans</string>
     <key>CFBundleDisplayName</key>
-    <string>函戈五笔</string>
+    <string>晗戈五笔</string>
     <key>CFBundleExecutable</key>
     <string>HangeWubi</string>
     <key>CFBundleIdentifier</key>
@@ -37,7 +37,7 @@
                 <key>TISIntendedLanguage</key>
                 <string>zh-Hans</string>
                 <key>tsInputModeMenuIconTextKey</key>
-                <string>函</string>
+                <string>晗</string>
                 <key>tsInputModeDefaultStateKey</key>
                 <true/>
                 <key>tsInputModePrimaryInScriptKey</key>
