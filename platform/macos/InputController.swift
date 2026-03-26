@@ -630,6 +630,7 @@ class CandidateWindow: NSPanel {
         containerView.layer?.cornerRadius = cornerRadius
         containerView.layer?.borderColor = NSColor.separatorColor.cgColor
         containerView.layer?.borderWidth = 0.5
+        containerView.autoresizingMask = [.width, .height]
         self.contentView = containerView
     }
 
@@ -720,9 +721,23 @@ class CandidateWindow: NSPanel {
             let codeY = padding + candidateLineHeight * CGFloat(count) + 4
             codeLabel.frame.origin.y = codeY
 
-            let origin = NSPoint(x: cursorRect.origin.x,
-                                 y: cursorRect.origin.y - totalHeight - 4)
-            self.setFrame(NSRect(x: origin.x, y: origin.y, width: totalWidth, height: totalHeight),
+            // 屏幕边界检测
+            let screen = NSScreen.main ?? NSScreen.screens.first
+            let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+            let screenMargin: CGFloat = 8
+
+            var originX = cursorRect.origin.x
+            if originX + totalWidth > screenFrame.maxX - screenMargin {
+                originX = screenFrame.maxX - screenMargin - totalWidth
+            }
+            originX = max(screenFrame.origin.x + screenMargin, originX)
+
+            var originY = cursorRect.origin.y - totalHeight - 4
+            if originY < screenFrame.origin.y + screenMargin {
+                originY = cursorRect.origin.y + cursorRect.size.height + 4
+            }
+
+            self.setFrame(NSRect(x: originX, y: originY, width: totalWidth, height: totalHeight),
                           display: true)
         } else {
             // 横向排列
@@ -770,18 +785,26 @@ class CandidateWindow: NSPanel {
                 view.frame = frame
             }
 
-            // 计算 x 位置：如果超出屏幕右边，则往左推
+            // 屏幕边界检测
             let screen = NSScreen.main ?? NSScreen.screens.first
-            let screenMaxX = screen?.visibleFrame.maxX ?? 1920
+            let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
             let screenMargin: CGFloat = 8
+
+            // X: 如果超出屏幕右边，则往左推
             var originX = cursorRect.origin.x
-            if originX + totalWidth > screenMaxX - screenMargin {
-                originX = screenMaxX - screenMargin - totalWidth
+            if originX + totalWidth > screenFrame.maxX - screenMargin {
+                originX = screenFrame.maxX - screenMargin - totalWidth
+            }
+            originX = max(screenFrame.origin.x + screenMargin, originX)
+
+            // Y: 优先在光标下方，如果超出屏幕底部则放到光标上方
+            var originY = cursorRect.origin.y - totalHeight - 4
+            if originY < screenFrame.origin.y + screenMargin {
+                // 放到光标上方
+                originY = cursorRect.origin.y + cursorRect.size.height + 4
             }
 
-            let origin = NSPoint(x: originX,
-                                 y: cursorRect.origin.y - totalHeight - 4)
-            self.setFrame(NSRect(x: origin.x, y: origin.y, width: totalWidth, height: totalHeight),
+            self.setFrame(NSRect(x: originX, y: originY, width: totalWidth, height: totalHeight),
                           display: true)
         }
 
