@@ -110,6 +110,9 @@ cp "$PROJECT_ROOT/target/release/libhangewubi.dylib" "$BUILD_DIR/$APP_NAME/Conte
 cp "$PROJECT_ROOT/data/wubi86.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 cp "$PROJECT_ROOT/data/config.toml" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 
+# 复制应用图标
+cp "$SCRIPT_DIR/AppIcon.icns" "$BUILD_DIR/$APP_NAME/Contents/Resources/AppIcon.icns"
+
 # 复制本地化文件
 cp -r "$SCRIPT_DIR/zh-Hans.lproj" "$BUILD_DIR/$APP_NAME/Contents/Resources/"
 cp -r "$SCRIPT_DIR/en.lproj" "$BUILD_DIR/$APP_NAME/Contents/Resources/"
