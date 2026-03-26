@@ -927,6 +927,22 @@ class InputController: IMKInputController {
         alert.runModal()
     }
 
+    // MARK: - Activation / Deactivation
+
+    override func activateServer(_ sender: Any!) {
+        debugLog("activateServer")
+    }
+
+    override func deactivateServer(_ sender: Any!) {
+        debugLog("deactivateServer")
+        let _ = ffi_handle_escape()
+        if let client = sender as? IMKTextInput {
+            client.setMarkedText("", selectionRange: NSRange(location: 0, length: 0),
+                               replacementRange: NSRange(location: NSNotFound, length: 0))
+        }
+        hideCandidates()
+    }
+
     // MARK: - Event Handling
 
     override func recognizedEvents(_ sender: Any!) -> Int {
