@@ -22,6 +22,18 @@ class KeyboardView: UIView {
     private(set) var isShifted = false
     private(set) var isNumberMode = false
 
+    var showGlobeKey: Bool = true {
+        didSet {
+            if oldValue != showGlobeKey {
+                buildKeys()
+            }
+        }
+    }
+
+    private var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     // Key layouts
     private let letterRows: [[String]] = [
         ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
@@ -39,10 +51,10 @@ class KeyboardView: UIView {
     private var bottomRow: UIStackView?
 
     // Layout constants
-    private let keySpacing: CGFloat = 6
-    private let rowSpacing: CGFloat = 10
+    private var keySpacing: CGFloat { isIPad ? 8 : 6 }
+    private var rowSpacing: CGFloat { isIPad ? 12 : 10 }
     private let keyCornerRadius: CGFloat = 5
-    private let edgeInset: CGFloat = 3
+    private var edgeInset: CGFloat { isIPad ? 6 : 3 }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -178,9 +190,18 @@ class KeyboardView: UIView {
         bottom.spacing = keySpacing
         bottom.alignment = .fill
 
-        let globeButton = makeSpecialKeyButton(title: "\u{1F310}", color: specialKeyColor)
-        globeButton.titleLabel?.font = UIFont.systemFont(ofSize: 16)
-        globeButton.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
+        let globeWidth: CGFloat = isIPad ? 55 : 44
+        let modeWidth: CGFloat = isIPad ? 65 : 50
+        let periodWidth: CGFloat = isIPad ? 55 : 44
+        let returnWidth: CGFloat = isIPad ? 110 : 88
+
+        if showGlobeKey {
+            let globeButton = makeSpecialKeyButton(title: "\u{1F310}", color: specialKeyColor)
+            globeButton.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 18 : 16)
+            globeButton.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
+            bottom.addArrangedSubview(globeButton)
+            globeButton.widthAnchor.constraint(equalToConstant: globeWidth).isActive = true
+        }
 
         let modeButton = makeSpecialKeyButton(
             title: isNumberMode ? "ABC" : "123", color: specialKeyColor
@@ -198,17 +219,15 @@ class KeyboardView: UIView {
         returnButton.setTitleColor(.white, for: .normal)
         returnButton.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
 
-        bottom.addArrangedSubview(globeButton)
         bottom.addArrangedSubview(modeButton)
         bottom.addArrangedSubview(spaceButton)
         bottom.addArrangedSubview(periodButton)
         bottom.addArrangedSubview(returnButton)
 
         // Width constraints for bottom row
-        globeButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        modeButton.widthAnchor.constraint(equalToConstant: 50).isActive = true
-        periodButton.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        returnButton.widthAnchor.constraint(equalToConstant: 88).isActive = true
+        modeButton.widthAnchor.constraint(equalToConstant: modeWidth).isActive = true
+        periodButton.widthAnchor.constraint(equalToConstant: periodWidth).isActive = true
+        returnButton.widthAnchor.constraint(equalToConstant: returnWidth).isActive = true
 
         containerStack.addArrangedSubview(bottom)
         bottomRow = bottom
@@ -247,7 +266,7 @@ class KeyboardView: UIView {
     private func makeKeyButton(title: String, tag: String) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 22)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 26 : 22)
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = keyBackgroundColor
         button.layer.cornerRadius = keyCornerRadius
@@ -265,7 +284,7 @@ class KeyboardView: UIView {
     private func makeSpecialKeyButton(title: String, color: UIColor) -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 18 : 16, weight: .medium)
         button.setTitleColor(.label, for: .normal)
         button.backgroundColor = color
         button.layer.cornerRadius = keyCornerRadius
@@ -312,7 +331,8 @@ class KeyboardView: UIView {
         // Start repeat timer
         deleteTimer?.invalidate()
         deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            self?.delegate?.keyboardViewDidTapBackspace(self!)
+            guard let self = self else { return }
+            self.delegate?.keyboardViewDidTapBackspace(self)
         }
     }
 

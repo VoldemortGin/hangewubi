@@ -13,13 +13,21 @@ class KeyboardViewController: UIInputViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        initializeEngine()
+        NSLog("[HangeWubi] viewDidLoad called")
         setupUI()
+        initializeEngineAsync()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        NSLog("[HangeWubi] viewWillAppear called")
+        keyboardView?.showGlobeKey = needsInputModeSwitchKey
         updateHeight()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        NSLog("[HangeWubi] viewDidAppear called, engineInitialized=\(engineInitialized)")
     }
 
     override func viewWillLayoutSubviews() {
@@ -36,12 +44,28 @@ class KeyboardViewController: UIInputViewController {
 
     // MARK: - Engine Init
 
+    private func initializeEngineAsync() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.initializeEngine()
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if self.engineInitialized {
+                    NSLog("[HangeWubi] Engine ready, keyboard fully functional")
+                }
+            }
+        }
+    }
+
     private func initializeEngine() {
         guard let bundle = Bundle(for: type(of: self)).path(forResource: "wubi86", ofType: "txt") else {
             NSLog("[HangeWubi] wubi86.txt not found in extension bundle")
             return
         }
+        NSLog("[HangeWubi] Starting ffi_init...")
+        let start = CFAbsoluteTimeGetCurrent()
         let count = ffi_init(bundle)
+        let elapsed = CFAbsoluteTimeGetCurrent() - start
+        NSLog("[HangeWubi] ffi_init completed in %.3f seconds", elapsed)
         if count < 0 {
             NSLog("[HangeWubi] Failed to initialize engine")
         } else {
@@ -68,6 +92,7 @@ class KeyboardViewController: UIInputViewController {
         // Keyboard view
         keyboardView = KeyboardView()
         keyboardView.delegate = self
+        keyboardView.showGlobeKey = needsInputModeSwitchKey
         keyboardView.translatesAutoresizingMaskIntoConstraints = false
         inputView.addSubview(keyboardView)
 
@@ -90,13 +115,22 @@ class KeyboardViewController: UIInputViewController {
     }
 
     private var isLandscape: Bool {
-        let size = UIScreen.main.bounds.size
+        let size = view.bounds.size
         return size.width > size.height
+    }
+
+    private var isIPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
     }
 
     private var totalHeight: CGFloat {
         let candidateHeight: CGFloat = 40
-        let keyboardHeight: CGFloat = isLandscape ? 162 : 216
+        let keyboardHeight: CGFloat
+        if isIPad {
+            keyboardHeight = isLandscape ? 220 : 280
+        } else {
+            keyboardHeight = isLandscape ? 162 : 216
+        }
         return candidateHeight + keyboardHeight
     }
 
