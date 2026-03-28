@@ -187,13 +187,25 @@ if [[ "$BUILD_MODE" == "dist" ]]; then
     echo ""
     echo "=== 创建 DMG 安装包 ==="
 
-    # 创建 DMG
+    # 创建 DMG（带自定义卷图标）
     echo "[DMG] 打包 $DMG_NAME ..."
     rm -f "$DMG_PATH"
+
+    # 创建临时暂存目录，放入 app 和卷图标
+    STAGING_DIR="$BUILD_DIR/dmg-staging"
+    rm -rf "$STAGING_DIR"
+    mkdir -p "$STAGING_DIR"
+    cp -R "$BUILD_DIR/$APP_NAME" "$STAGING_DIR/"
+    cp "$SCRIPT_DIR/AppIcon.icns" "$STAGING_DIR/.VolumeIcon.icns"
+    SetFile -a C "$STAGING_DIR"
+
     hdiutil create -volname "HangeWubi" \
-        -srcfolder "$BUILD_DIR/$APP_NAME" \
+        -srcfolder "$STAGING_DIR" \
         -ov -format UDZO \
         "$DMG_PATH"
+
+    # 清理暂存目录
+    rm -rf "$STAGING_DIR"
 
     echo ""
     echo "=== 公证 DMG ==="
