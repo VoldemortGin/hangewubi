@@ -10,6 +10,8 @@ settings:
     DEVELOPMENT_TEAM: 7H7QT6A3TG
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "3"
 
 targets:
   HangeWubi:
@@ -20,6 +22,8 @@ targets:
     info:
       path: HangeWubi/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -40,12 +44,15 @@ targets:
     platform: iOS
     sources:
       - path: HangeWubiKeyboard
-    resources:
       - path: ../../data/wubi86.txt
+        buildPhase: resources
       - path: ../../data/config.toml
+        buildPhase: resources
     info:
       path: HangeWubiKeyboard/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDisplayName: 晗戈五笔
         NSExtension:
           NSExtensionPointIdentifier: com.apple.keyboard-service

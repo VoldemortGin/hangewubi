@@ -88,21 +88,24 @@ class CandidateBarView: UIView {
         stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         for (index, candidate) in newCandidates.enumerated() {
-            let button = UIButton(type: .system)
             let numberPrefix = "\(index + 1). "
             let title = numberPrefix + candidate.text
-            button.setTitle(title, for: .normal)
-            button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
-            button.contentEdgeInsets = UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 12)
+
+            var config = UIButton.Configuration.plain()
+            config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
+            if index == 0 {
+                config.baseForegroundColor = .systemBlue
+            } else {
+                config.baseForegroundColor = .label
+            }
+            let font = index == 0
+                ? UIFont.systemFont(ofSize: 16, weight: .semibold)
+                : UIFont.systemFont(ofSize: 16)
+            config.attributedTitle = AttributedString(title, attributes: AttributeContainer([.font: font]))
+
+            let button = UIButton(configuration: config)
             button.tag = index
             button.addTarget(self, action: #selector(candidateTapped(_:)), for: .touchUpInside)
-
-            if index == 0 {
-                button.setTitleColor(.systemBlue, for: .normal)
-                button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
-            } else {
-                button.setTitleColor(.label, for: .normal)
-            }
 
             stackView.addArrangedSubview(button)
         }

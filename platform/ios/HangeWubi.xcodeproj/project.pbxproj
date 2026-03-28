@@ -12,7 +12,9 @@
 		2B06FF9AACE2A2124E12EFF8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5DCA93B4954C565640574338 /* Assets.xcassets */; };
 		3E6E3E54B059DC92B647B043 /* CandidateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F26919AB1921C989A86824C /* CandidateBarView.swift */; };
 		4AFE072698D56EEEB9396CAB /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */; };
+		65753CCEEC60BCD572DB78CF /* wubi86.txt in Resources */ = {isa = PBXBuildFile; fileRef = 315C792D33464184088CF859 /* wubi86.txt */; };
 		75B6FDFA2555EE37CE0A8475 /* HangeWubiKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 30342E3491992689315A119F /* HangeWubiKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		912DA525BC2D90F47CA99EA2 /* config.toml in Resources */ = {isa = PBXBuildFile; fileRef = 16B5F91189CD91AA548FA2BC /* config.toml */; };
 		9E73AB56C212EC49B53DC834 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */; };
 /* End PBXBuildFile section */
 
@@ -42,9 +44,11 @@
 
 /* Begin PBXFileReference section */
 		0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
+		16B5F91189CD91AA548FA2BC /* config.toml */ = {isa = PBXFileReference; path = config.toml; sourceTree = "<group>"; };
 		1747A0D6979558C5467A9290 /* HangeWubiKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HangeWubiKeyboard.entitlements; sourceTree = "<group>"; };
 		1B0B42258E3E244E0F619968 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		30342E3491992689315A119F /* HangeWubiKeyboard.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = HangeWubiKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		315C792D33464184088CF859 /* wubi86.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = wubi86.txt; sourceTree = "<group>"; };
 		3F70598EB50616C3675B5338 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		4F26919AB1921C989A86824C /* CandidateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateBarView.swift; sourceTree = "<group>"; };
 		5DCA93B4954C565640574338 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -69,9 +73,20 @@
 			path = HangeWubi;
 			sourceTree = "<group>";
 		};
+		6F84E48A441D821B54A8B944 /* data */ = {
+			isa = PBXGroup;
+			children = (
+				16B5F91189CD91AA548FA2BC /* config.toml */,
+				315C792D33464184088CF859 /* wubi86.txt */,
+			);
+			name = data;
+			path = ../../data;
+			sourceTree = "<group>";
+		};
 		B5263ABEDF87FBD0A9642E9B = {
 			isa = PBXGroup;
 			children = (
+				6F84E48A441D821B54A8B944 /* data */,
 				1334E4D59825D820A0DFF78A /* HangeWubi */,
 				ED46A638177308DD46984A8D /* HangeWubiKeyboard */,
 				F2C6ECD84C4DDDBDE2983D09 /* Products */,
@@ -108,6 +123,7 @@
 			buildConfigurationList = 34803E34C7C9D7C64C187B67 /* Build configuration list for PBXNativeTarget "HangeWubiKeyboard" */;
 			buildPhases = (
 				53954A1F2E7F41E73AF3D180 /* Sources */,
+				6764453E8210D0FD3B5213A0 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -180,6 +196,15 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		6764453E8210D0FD3B5213A0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				912DA525BC2D90F47CA99EA2 /* config.toml in Resources */,
+				65753CCEEC60BCD572DB78CF /* wubi86.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A281D5C1041EA0FD644AE3F1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -255,6 +280,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -274,6 +300,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -339,6 +366,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -352,6 +380,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
