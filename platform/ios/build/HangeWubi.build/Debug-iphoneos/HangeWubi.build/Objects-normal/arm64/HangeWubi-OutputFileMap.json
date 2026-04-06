@@ -1,0 +1,39 @@
+{
+  "" : {
+    "diagnostics" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/HangeWubi-primary.dia",
+    "emit-module-dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/HangeWubi-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/HangeWubi-primary-emit-module.dia",
+    "pch" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/HangeWubi-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/HangeWubi-primary.swiftdeps"
+  },
+  "/Users/linhan/startup/hangewubi/platform/ios/HangeWubi/AppDelegate.swift" : {
+    "const-values" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.swiftconstvalues",
+    "dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.d",
+    "diagnostics" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.dia",
+    "index-unit-output-path" : "/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.o",
+    "swift-dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate.swiftdeps",
+    "swiftmodule" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/AppDelegate~partial.swiftmodule"
+  },
+  "/Users/linhan/startup/hangewubi/platform/ios/HangeWubi/MainViewController.swift" : {
+    "const-values" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.swiftconstvalues",
+    "dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.d",
+    "diagnostics" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.dia",
+    "index-unit-output-path" : "/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.o",
+    "llvm-bc" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.bc",
+    "object" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.o",
+    "swift-dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController.swiftdeps",
+    "swiftmodule" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/MainViewController~partial.swiftmodule"
+  },
+  "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/linhan/startup/hangewubi/platform/ios/build/HangeWubi.build/Debug-iphoneos/HangeWubi.build/Objects-normal/arm64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

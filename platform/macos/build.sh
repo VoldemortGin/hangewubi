@@ -207,6 +207,14 @@ if [[ "$BUILD_MODE" == "dist" ]]; then
     # 清理暂存目录
     rm -rf "$STAGING_DIR"
 
+    # 签名 DMG（Gatekeeper 会在挂载前检查 DMG 签名）
+    echo "[DMG] 签名 $DMG_NAME ..."
+    codesign --force --sign "$SIGNING_IDENTITY" \
+        --timestamp \
+        "$DMG_PATH"
+    echo "[DMG] 验证 DMG 签名..."
+    codesign --verify --verbose=2 "$DMG_PATH"
+
     echo ""
     echo "=== 公证 DMG ==="
 

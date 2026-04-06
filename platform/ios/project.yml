@@ -11,7 +11,7 @@ settings:
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
     MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "3"
+    CURRENT_PROJECT_VERSION: "9"
 
 targets:
   HangeWubi:
@@ -24,12 +24,24 @@ targets:
       properties:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        UILaunchScreen: {}
+        UILaunchScreen:
+          UIColorName: SystemBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: "Default Configuration"
+                UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).SceneDelegate"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hangewubi.app
@@ -69,6 +81,8 @@ targets:
         INFOPLIST_FILE: HangeWubiKeyboard/Info.plist
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: HangeWubiKeyboard/HangeWubiKeyboard.entitlements
+        SKIP_INSTALL: "YES"
+        APPLICATION_EXTENSION_API_ONLY: "YES"
         SWIFT_OBJC_BRIDGING_HEADER: HangeWubiKeyboard/BridgingHeader.h
         LIBRARY_SEARCH_PATHS:
           - "$(inherited)"
