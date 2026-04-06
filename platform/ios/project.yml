@@ -7,6 +7,7 @@ options:
 
 settings:
   base:
+    SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: 7H7QT6A3TG
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
@@ -45,6 +46,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hangewubi.app
+        PRODUCT_NAME: HangeWubi
         INFOPLIST_FILE: HangeWubi/Info.plist
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: HangeWubi/HangeWubi.entitlements

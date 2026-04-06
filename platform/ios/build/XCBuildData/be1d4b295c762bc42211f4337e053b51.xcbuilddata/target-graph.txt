@@ -1,4 +1,0 @@
-Target dependency graph (2 targets)
-Target 'HangeWubi' in project 'HangeWubi'
-➜ Explicit dependency on target 'HangeWubiKeyboard' in project 'HangeWubi'
-Target 'HangeWubiKeyboard' in project 'HangeWubi' (no dependencies)
