@@ -178,6 +178,7 @@ elif [[ "$BUILD_MODE" == "dist" ]]; then
         -configuration Release \
         -sdk iphoneos \
         -archivePath "$ARCHIVE_PATH" \
+        -allowProvisioningUpdates \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         CODE_SIGN_STYLE=Automatic \
         SUPPORTED_PLATFORMS=iphoneos \
@@ -210,7 +211,8 @@ PLIST
     xcodebuild -exportArchive \
         -archivePath "$ARCHIVE_PATH" \
         -exportPath "$DIST_DIR" \
-        -exportOptionsPlist "$EXPORT_OPTIONS"
+        -exportOptionsPlist "$EXPORT_OPTIONS" \
+        -allowProvisioningUpdates
 
     echo ""
     echo "=== 构建完成 (v${VERSION}, 模式: dist — App Store) ==="
