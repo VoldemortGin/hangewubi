@@ -7,3 +7,4 @@ ci-logs/
 *.key
 *.cer
 *.p12
+platform/ios/build/
