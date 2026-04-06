@@ -105,27 +105,16 @@ fi
 echo "[2/4] 编译 Rust 静态库 ($RUST_TARGET, ${PROFILE_DIR})..."
 cd "$PROJECT_ROOT"
 
-CARGO_TOML="$PROJECT_ROOT/Cargo.toml"
-
-# 检查是否需要临时添加 staticlib
-if ! grep -q '"staticlib"' "$CARGO_TOML"; then
-    echo "  临时添加 staticlib 到 crate-type..."
-    cp "$CARGO_TOML" "$CARGO_TOML.bak"
-    sed -i '' 's/crate-type = \["lib", "cdylib"\]/crate-type = ["lib", "cdylib", "staticlib"]/' "$CARGO_TOML"
-    NEED_RESTORE=true
-else
-    NEED_RESTORE=false
-fi
-
-# 确保无论成功失败都恢复 Cargo.toml
-restore_cargo_toml() {
-    if [ "$NEED_RESTORE" = true ] && [ -f "$CARGO_TOML.bak" ]; then
-        mv "$CARGO_TOML.bak" "$CARGO_TOML"
-    fi
-}
-trap restore_cargo_toml EXIT
-
 cargo build $CARGO_PROFILE --target "$RUST_TARGET"
+
+# 删除动态库，确保 Xcode 链接器只能找到静态库 (.a)
+# cargo 同时生成 .dylib 和 .a，而 -lhangewubi 会优先选择 .dylib，
+# 导致 iOS 键盘扩展加载动态库时崩溃
+DYLIB_PATH="$PROJECT_ROOT/target/$RUST_TARGET/$PROFILE_DIR/libhangewubi.dylib"
+if [ -f "$DYLIB_PATH" ]; then
+    echo "  删除动态库以强制静态链接: $DYLIB_PATH"
+    rm -f "$DYLIB_PATH"
+fi
 
 # 验证静态库存在
 STATIC_LIB="$PROJECT_ROOT/target/$RUST_TARGET/$PROFILE_DIR/libhangewubi.a"

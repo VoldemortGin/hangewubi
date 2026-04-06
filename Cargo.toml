@@ -7,7 +7,7 @@ license = "MIT"
 authors = ["林晗 <gin.linhan@gmail.com>"]
 
 [lib]
-crate-type = ["lib", "cdylib"]
+crate-type = ["lib", "cdylib", "staticlib"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

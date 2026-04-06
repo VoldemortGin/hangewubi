@@ -13,7 +13,7 @@ class KeyboardViewController: UIInputViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        NSLog("[HangeWubi] viewDidLoad called")
+        NSLog("[HangeWubi] viewDidLoad called, device idiom=\(UIDevice.current.userInterfaceIdiom.rawValue)")
         setupUI()
         initializeEngineAsync()
     }
@@ -28,6 +28,8 @@ class KeyboardViewController: UIInputViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         NSLog("[HangeWubi] viewDidAppear called, engineInitialized=\(engineInitialized)")
+        // Fallback: on iPad, view dimensions may not be finalized until viewDidAppear
+        updateHeight()
     }
 
     override func viewWillLayoutSubviews() {
@@ -115,7 +117,7 @@ class KeyboardViewController: UIInputViewController {
     }
 
     private var isLandscape: Bool {
-        let size = view.bounds.size
+        let size = UIScreen.main.bounds.size
         return size.width > size.height
     }
 
@@ -131,7 +133,9 @@ class KeyboardViewController: UIInputViewController {
         } else {
             keyboardHeight = isLandscape ? 162 : 216
         }
-        return candidateHeight + keyboardHeight
+        let height = candidateHeight + keyboardHeight
+        // Guard against zero/invalid height during early lifecycle on iPad
+        return max(height, 200)
     }
 
     private func updateHeight() {

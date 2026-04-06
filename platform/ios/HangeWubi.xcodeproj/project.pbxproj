@@ -13,6 +13,7 @@
 		3E6E3E54B059DC92B647B043 /* CandidateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F26919AB1921C989A86824C /* CandidateBarView.swift */; };
 		4AFE072698D56EEEB9396CAB /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */; };
 		65753CCEEC60BCD572DB78CF /* wubi86.txt in Resources */ = {isa = PBXBuildFile; fileRef = 315C792D33464184088CF859 /* wubi86.txt */; };
+		67170E25F1FBE936537B770C /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12362675FA3273DC8D726B48 /* SceneDelegate.swift */; };
 		75B6FDFA2555EE37CE0A8475 /* HangeWubiKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 30342E3491992689315A119F /* HangeWubiKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		912DA525BC2D90F47CA99EA2 /* config.toml in Resources */ = {isa = PBXBuildFile; fileRef = 16B5F91189CD91AA548FA2BC /* config.toml */; };
 		9E73AB56C212EC49B53DC834 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */; };
@@ -44,6 +45,7 @@
 
 /* Begin PBXFileReference section */
 		0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
+		12362675FA3273DC8D726B48 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		16B5F91189CD91AA548FA2BC /* config.toml */ = {isa = PBXFileReference; path = config.toml; sourceTree = "<group>"; };
 		1747A0D6979558C5467A9290 /* HangeWubiKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HangeWubiKeyboard.entitlements; sourceTree = "<group>"; };
 		1B0B42258E3E244E0F619968 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -69,6 +71,7 @@
 				E05DED22F9AB59CEA474BD85 /* HangeWubi.entitlements */,
 				1B0B42258E3E244E0F619968 /* Info.plist */,
 				3F70598EB50616C3675B5338 /* MainViewController.swift */,
+				12362675FA3273DC8D726B48 /* SceneDelegate.swift */,
 			);
 			path = HangeWubi;
 			sourceTree = "<group>";
@@ -167,11 +170,11 @@
 				TargetAttributes = {
 					5AE9669A344589F58C0CCC59 = {
 						DevelopmentTeam = 7H7QT6A3TG;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 					};
 					A9DD7B76B72DCEBC5FEB4A37 = {
 						DevelopmentTeam = 7H7QT6A3TG;
-						ProvisioningStyle = Automatic;
+						ProvisioningStyle = Manual;
 					};
 				};
 			};
@@ -232,6 +235,7 @@
 			files = (
 				174BDEB165D14E8002528188 /* AppDelegate.swift in Sources */,
 				2246BE9ACB45249093DDF3E1 /* MainViewController.swift in Sources */,
+				67170E25F1FBE936537B770C /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,7 +284,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -319,14 +323,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HangeWubi/HangeWubi.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Han Lin (7H7QT6A3TG)";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = HangeWubi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app;
+				PROVISIONING_PROFILE_SPECIFIER = "HangeWubi App Store";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -366,7 +371,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -396,8 +401,10 @@
 		9207E69ED157F77956EF72C3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = HangeWubiKeyboard/HangeWubiKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Han Lin (7H7QT6A3TG)";
+				CODE_SIGN_STYLE = Manual;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../../include",
@@ -420,7 +427,9 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app.keyboard;
 				PRODUCT_NAME = HangeWubiKeyboard;
+				PROVISIONING_PROFILE_SPECIFIER = "HangeWubi Keyboard App Store";
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = HangeWubiKeyboard/BridgingHeader.h;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -429,8 +438,10 @@
 		EAC2BC860C206BED58CA5E4D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = HangeWubiKeyboard/HangeWubiKeyboard.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Han Lin (7H7QT6A3TG)";
+				CODE_SIGN_STYLE = Manual;
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../../include",
@@ -453,7 +464,9 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app.keyboard;
 				PRODUCT_NAME = HangeWubiKeyboard;
+				PROVISIONING_PROFILE_SPECIFIER = "HangeWubi Keyboard App Store";
 				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = HangeWubiKeyboard/BridgingHeader.h;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -464,14 +477,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HangeWubi/HangeWubi.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "iPhone Distribution: Han Lin (7H7QT6A3TG)";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = HangeWubi/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app;
+				PROVISIONING_PROFILE_SPECIFIER = "HangeWubi App Store";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
