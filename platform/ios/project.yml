@@ -20,6 +20,8 @@ targets:
     platform: iOS
     sources:
       - path: HangeWubi
+      - path: HangeWubi/PrivacyInfo.xcprivacy
+        buildPhase: resources
     info:
       path: HangeWubi/Info.plist
       properties:
@@ -58,6 +60,8 @@ targets:
     platform: iOS
     sources:
       - path: HangeWubiKeyboard
+      - path: HangeWubiKeyboard/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: ../../data/wubi86.txt
         buildPhase: resources
       - path: ../../data/config.toml
