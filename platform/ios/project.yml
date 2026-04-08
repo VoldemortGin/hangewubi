@@ -11,8 +11,8 @@ settings:
     DEVELOPMENT_TEAM: 7H7QT6A3TG
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
-    MARKETING_VERSION: "1.1"
-    CURRENT_PROJECT_VERSION: "9"
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "1"
 
 targets:
   HangeWubi:
@@ -95,10 +95,12 @@ targets:
         SKIP_INSTALL: "YES"
         APPLICATION_EXTENSION_API_ONLY: "YES"
         SWIFT_OBJC_BRIDGING_HEADER: HangeWubiKeyboard/BridgingHeader.h
-        LIBRARY_SEARCH_PATHS:
+        "LIBRARY_SEARCH_PATHS[sdk=iphoneos*]":
           - "$(inherited)"
           - "$(PROJECT_DIR)/../../target/aarch64-apple-ios/release"
           - "$(PROJECT_DIR)/../../target/aarch64-apple-ios/debug"
+        "LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]":
+          - "$(inherited)"
           - "$(PROJECT_DIR)/../../target/aarch64-apple-ios-sim/release"
           - "$(PROJECT_DIR)/../../target/aarch64-apple-ios-sim/debug"
         HEADER_SEARCH_PATHS:

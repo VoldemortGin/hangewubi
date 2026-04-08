@@ -203,6 +203,20 @@ class KeyboardViewController: UIInputViewController {
         candidateBar.isHidden = buffer.isEmpty && candidates.isEmpty
     }
 
+    /// 满 4 码自动上屏：模仿 iOS 系统五笔行为。
+    /// 如果引擎已自动 commit（unique 4 码），buffer 已为空，无操作；
+    /// 否则提交首选候选。
+    private func autoCommitIfBufferFull() {
+        let buffer = getBuffer()
+        guard buffer.count >= 4 else { return }
+        let list = ffi_get_candidates()
+        let hasCandidate = list.count > 0
+        ffi_free_candidate_list(list)
+        guard hasCandidate else { return }
+        let result = ffi_handle_number(1)
+        processResult(result)
+    }
+
     private func getBuffer() -> String {
         let ptr = ffi_get_buffer()
         let s = ptr.flatMap { String(cString: $0) } ?? ""
@@ -234,6 +248,8 @@ extension KeyboardViewController: KeyboardViewDelegate {
                 let lower = ch.lowercased()
                 let result = ffi_handle_key(Int8(bitPattern: Character(lower).asciiValue!))
                 processResult(result)
+                // 五笔最多 4 码：满 4 码且仍有候选时，自动选择第一候选上屏
+                autoCommitIfBufferFull()
             } else if ch.isNumber {
                 let num = UInt8(ch.asciiValue! - Character("0").asciiValue!)
                 let result = ffi_handle_number(num)
@@ -318,6 +334,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
             ffi_toggle_mode()
             let mode = ffi_get_mode()
             isChinese = (mode == 0)
+            keyboardView.isEnglishMode = !isChinese
             candidateBar.clear()
         }
     }
