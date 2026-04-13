@@ -107,14 +107,13 @@ cd "$PROJECT_ROOT"
 
 cargo build $CARGO_PROFILE --target "$RUST_TARGET"
 
-# 删除动态库，确保 Xcode 链接器只能找到静态库 (.a)
+# 删除所有动态库，确保 Xcode 链接器只能找到静态库 (.a)
 # cargo 同时生成 .dylib 和 .a，而 -lhangewubi 会优先选择 .dylib，
 # 导致 iOS 键盘扩展加载动态库时崩溃
-DYLIB_PATH="$PROJECT_ROOT/target/$RUST_TARGET/$PROFILE_DIR/libhangewubi.dylib"
-if [ -f "$DYLIB_PATH" ]; then
-    echo "  删除动态库以强制静态链接: $DYLIB_PATH"
-    rm -f "$DYLIB_PATH"
-fi
+# 注意：必须同时删除 deps/ 目录下的副本，否则链接器仍会找到它
+find "$PROJECT_ROOT/target/$RUST_TARGET/$PROFILE_DIR" -name "libhangewubi.dylib" -delete -print 2>/dev/null | while read f; do
+    echo "  删除动态库: $f"
+done
 
 # 验证静态库存在
 STATIC_LIB="$PROJECT_ROOT/target/$RUST_TARGET/$PROFILE_DIR/libhangewubi.a"

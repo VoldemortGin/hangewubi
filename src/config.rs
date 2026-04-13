@@ -38,6 +38,14 @@ pub struct Config {
     /// 用户词典路径
     #[serde(default)]
     pub user_dict_path: Option<PathBuf>,
+
+    /// 五笔拼音混合输入开关
+    #[serde(default)]
+    pub pinyin_mixed_enabled: bool,
+
+    /// 拼音词典路径
+    #[serde(default)]
+    pub pinyin_dict_path: Option<PathBuf>,
 }
 
 fn default_candidate_count() -> usize {
@@ -60,6 +68,8 @@ impl Default for Config {
             empty_code_action: 0,
             dict_path: None,
             user_dict_path: None,
+            pinyin_mixed_enabled: false,
+            pinyin_dict_path: None,
         }
     }
 }

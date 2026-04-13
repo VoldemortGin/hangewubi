@@ -148,10 +148,19 @@ bool TextService::InitEngine()
     wchar_t dictPath[MAX_PATH];
     swprintf(dictPath, MAX_PATH, L"%s\\data\\wubi86.txt", dllPath);
 
+    // Build path to pinyin dict: <dll_dir>\data\pinyin.txt
+    wchar_t pinyinPath[MAX_PATH];
+    swprintf(pinyinPath, MAX_PATH, L"%s\\data\\pinyin.txt", dllPath);
+
     // Convert to UTF-8 for the C FFI
     std::string dictPathUtf8 = WideToUtf8(dictPath);
+    std::string pinyinPathUtf8 = WideToUtf8(pinyinPath);
 
-    int64_t count = ffi_init(dictPathUtf8.c_str());
+    // Check if pinyin dict exists
+    DWORD pinyinAttr = GetFileAttributesW(pinyinPath);
+    const char *pinyinPtr = (pinyinAttr != INVALID_FILE_ATTRIBUTES) ? pinyinPathUtf8.c_str() : nullptr;
+
+    int64_t count = ffi_init_with_pinyin(dictPathUtf8.c_str(), pinyinPtr);
     if (count < 0) {
         // Try alternate location: <dll_dir>\wubi86.txt
         swprintf(dictPath, MAX_PATH, L"%s\\wubi86.txt", dllPath);
@@ -161,8 +170,18 @@ bool TextService::InitEngine()
 
     if (count >= 0) {
         _engineInitialized = true;
-        wchar_t msg[128];
-        swprintf(msg, 128, L"HangeWubi: Loaded %lld entries\n", (long long)count);
+        // Apply default config; enable pinyin mixed input when pinyin dict is present
+        bool pinyinMixed = (pinyinPtr != nullptr);
+        ffi_set_config(
+            /*auto_commit_unique_4*/ true,
+            /*auto_commit_first_5*/ false,
+            /*enter_key_action*/ 0,
+            /*empty_code_action*/ 0,
+            /*candidate_count*/ 5,
+            pinyinMixed);
+        wchar_t msg[160];
+        swprintf(msg, 160, L"HangeWubi: Loaded %lld entries, pinyinMixed=%d\n",
+                 (long long)count, pinyinMixed ? 1 : 0);
         OutputDebugStringW(msg);
         return true;
     }

@@ -23,6 +23,10 @@ class KeyboardViewController: UIInputViewController {
         NSLog("[HangeWubi] viewWillAppear called")
         keyboardView?.showGlobeKey = needsInputModeSwitchKey
         updateHeight()
+        // 每次键盘显示时重新加载设置（用户可能在主 App 中修改了设置）
+        if engineInitialized {
+            applySharedSettings(hasPinyin: true)
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -59,23 +63,35 @@ class KeyboardViewController: UIInputViewController {
     }
 
     private func initializeEngine() {
-        guard let bundle = Bundle(for: type(of: self)).path(forResource: "wubi86", ofType: "txt") else {
+        guard let wubiPath = Bundle(for: type(of: self)).path(forResource: "wubi86", ofType: "txt") else {
             NSLog("[HangeWubi] wubi86.txt not found in extension bundle")
             return
         }
-        NSLog("[HangeWubi] Starting ffi_init...")
+        let pinyinPath = Bundle(for: type(of: self)).path(forResource: "pinyin", ofType: "txt")
+
+        NSLog("[HangeWubi] Starting ffi_init_with_pinyin...")
         let start = CFAbsoluteTimeGetCurrent()
-        let count = ffi_init(bundle)
+        let count = ffi_init_with_pinyin(wubiPath, pinyinPath)
         let elapsed = CFAbsoluteTimeGetCurrent() - start
         NSLog("[HangeWubi] ffi_init completed in %.3f seconds", elapsed)
         if count < 0 {
             NSLog("[HangeWubi] Failed to initialize engine")
         } else {
-            NSLog("[HangeWubi] Engine initialized, loaded \(count) entries")
+            let hasPinyin = pinyinPath != nil
+            NSLog("[HangeWubi] Engine initialized, loaded \(count) wubi entries, pinyin=\(hasPinyin)")
             engineInitialized = true
-            // Apply default config
-            ffi_set_config(true, true, 0, 0, 5)
+            applySharedSettings(hasPinyin: hasPinyin)
         }
+    }
+
+    /// 从 App Group 读取共享设置并应用到引擎
+    private func applySharedSettings(hasPinyin: Bool) {
+        let defaults = UserDefaults(suiteName: "group.com.hangewubi.app")
+        let pinyinEnabled = hasPinyin && (defaults?.bool(forKey: "pinyin_mixed_enabled") ?? false)
+        let autoCommit4 = defaults?.object(forKey: "auto_commit_unique_4") as? Bool ?? true
+        let autoCommit5 = defaults?.object(forKey: "auto_commit_first_5") as? Bool ?? true
+        ffi_set_config(autoCommit4, autoCommit5, 0, 0, 5, pinyinEnabled)
+        NSLog("[HangeWubi] Settings applied: pinyin=\(pinyinEnabled) auto4=\(autoCommit4) auto5=\(autoCommit5)")
     }
 
     // MARK: - UI Setup

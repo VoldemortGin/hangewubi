@@ -89,6 +89,17 @@ class MainViewController: UIViewController {
         contentView.addSubview(openSettingsButton)
 
         // Description
+        // 输入法设置按钮
+        let settingsButton = UIButton(type: .system)
+        settingsButton.setTitle("输入法设置", for: .normal)
+        settingsButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+        settingsButton.backgroundColor = .systemGray5
+        settingsButton.setTitleColor(.label, for: .normal)
+        settingsButton.layer.cornerRadius = 12
+        settingsButton.translatesAutoresizingMaskIntoConstraints = false
+        settingsButton.addTarget(self, action: #selector(openIMESettings), for: .touchUpInside)
+        contentView.addSubview(settingsButton)
+
         let descLabel = UILabel()
         descLabel.text = "晗戈五笔是一款开源的五笔输入法，基于 86 版五笔编码，支持自动上屏、候选词选择等功能。所有数据均在本地处理，不需要网络权限。"
         descLabel.font = UIFont.systemFont(ofSize: 14)
@@ -126,7 +137,12 @@ class MainViewController: UIViewController {
             openSettingsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             openSettingsButton.heightAnchor.constraint(equalToConstant: 50),
 
-            descLabel.topAnchor.constraint(equalTo: openSettingsButton.bottomAnchor, constant: 32),
+            settingsButton.topAnchor.constraint(equalTo: openSettingsButton.bottomAnchor, constant: 12),
+            settingsButton.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            settingsButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            settingsButton.heightAnchor.constraint(equalToConstant: 50),
+
+            descLabel.topAnchor.constraint(equalTo: settingsButton.bottomAnchor, constant: 32),
             descLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 32),
             descLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -32),
             descLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -40),
@@ -145,5 +161,10 @@ class MainViewController: UIViewController {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    @objc private func openIMESettings() {
+        let settingsVC = SettingsViewController()
+        navigationController?.pushViewController(settingsVC, animated: true)
     }
 }

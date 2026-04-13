@@ -10,13 +10,17 @@
 		174BDEB165D14E8002528188 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5825A1A6EB37810669AFC8 /* AppDelegate.swift */; };
 		2246BE9ACB45249093DDF3E1 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F70598EB50616C3675B5338 /* MainViewController.swift */; };
 		2B06FF9AACE2A2124E12EFF8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5DCA93B4954C565640574338 /* Assets.xcassets */; };
+		37688FAE3A58F3E1229B6402 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0AE81E9FE2CDDFDAC7253407 /* PrivacyInfo.xcprivacy */; };
 		3E6E3E54B059DC92B647B043 /* CandidateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F26919AB1921C989A86824C /* CandidateBarView.swift */; };
 		4AFE072698D56EEEB9396CAB /* KeyboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */; };
 		65753CCEEC60BCD572DB78CF /* wubi86.txt in Resources */ = {isa = PBXBuildFile; fileRef = 315C792D33464184088CF859 /* wubi86.txt */; };
 		67170E25F1FBE936537B770C /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12362675FA3273DC8D726B48 /* SceneDelegate.swift */; };
+		6A7B39E1277B18EDA71102E2 /* pinyin.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5C85D635716C6526B9C72E80 /* pinyin.txt */; };
 		75B6FDFA2555EE37CE0A8475 /* HangeWubiKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 30342E3491992689315A119F /* HangeWubiKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		912DA525BC2D90F47CA99EA2 /* config.toml in Resources */ = {isa = PBXBuildFile; fileRef = 16B5F91189CD91AA548FA2BC /* config.toml */; };
 		9E73AB56C212EC49B53DC834 /* KeyboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */; };
+		CC94C6CB408595130B901A5E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A5A688DB653A30FBE1CC7241 /* PrivacyInfo.xcprivacy */; };
+		FC3213F93AAF9A576EA2C0E6 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4B5957F17A2A3A39DF8845 /* SettingsViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +48,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0AE81E9FE2CDDFDAC7253407 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
 		12362675FA3273DC8D726B48 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		16B5F91189CD91AA548FA2BC /* config.toml */ = {isa = PBXFileReference; path = config.toml; sourceTree = "<group>"; };
@@ -53,11 +58,14 @@
 		315C792D33464184088CF859 /* wubi86.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = wubi86.txt; sourceTree = "<group>"; };
 		3F70598EB50616C3675B5338 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		4F26919AB1921C989A86824C /* CandidateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CandidateBarView.swift; sourceTree = "<group>"; };
+		5C85D635716C6526B9C72E80 /* pinyin.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = pinyin.txt; sourceTree = "<group>"; };
 		5DCA93B4954C565640574338 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		62391628361A775D20AB4B73 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A5A688DB653A30FBE1CC7241 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AF5825A1A6EB37810669AFC8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C51A7A2F75280378AAB22BE4 /* HangeWubi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HangeWubi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CE8F0CD235CC0065605DF461 /* BridgingHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BridgingHeader.h; sourceTree = "<group>"; };
+		DA4B5957F17A2A3A39DF8845 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		E05DED22F9AB59CEA474BD85 /* HangeWubi.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HangeWubi.entitlements; sourceTree = "<group>"; };
 		FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -71,7 +79,9 @@
 				E05DED22F9AB59CEA474BD85 /* HangeWubi.entitlements */,
 				1B0B42258E3E244E0F619968 /* Info.plist */,
 				3F70598EB50616C3675B5338 /* MainViewController.swift */,
+				0AE81E9FE2CDDFDAC7253407 /* PrivacyInfo.xcprivacy */,
 				12362675FA3273DC8D726B48 /* SceneDelegate.swift */,
+				DA4B5957F17A2A3A39DF8845 /* SettingsViewController.swift */,
 			);
 			path = HangeWubi;
 			sourceTree = "<group>";
@@ -80,6 +90,7 @@
 			isa = PBXGroup;
 			children = (
 				16B5F91189CD91AA548FA2BC /* config.toml */,
+				5C85D635716C6526B9C72E80 /* pinyin.txt */,
 				315C792D33464184088CF859 /* wubi86.txt */,
 			);
 			name = data;
@@ -105,6 +116,7 @@
 				62391628361A775D20AB4B73 /* Info.plist */,
 				FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */,
 				0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */,
+				A5A688DB653A30FBE1CC7241 /* PrivacyInfo.xcprivacy */,
 			);
 			path = HangeWubiKeyboard;
 			sourceTree = "<group>";
@@ -179,7 +191,6 @@
 				};
 			};
 			buildConfigurationList = EB96DB6D4CBA60BCB6557E62 /* Build configuration list for PBXProject "HangeWubi" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -189,6 +200,7 @@
 			mainGroup = B5263ABEDF87FBD0A9642E9B;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = F2C6ECD84C4DDDBDE2983D09 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -203,7 +215,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC94C6CB408595130B901A5E /* PrivacyInfo.xcprivacy in Resources */,
 				912DA525BC2D90F47CA99EA2 /* config.toml in Resources */,
+				6A7B39E1277B18EDA71102E2 /* pinyin.txt in Resources */,
 				65753CCEEC60BCD572DB78CF /* wubi86.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -213,6 +227,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2B06FF9AACE2A2124E12EFF8 /* Assets.xcassets in Resources */,
+				37688FAE3A58F3E1229B6402 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +251,7 @@
 				174BDEB165D14E8002528188 /* AppDelegate.swift in Sources */,
 				2246BE9ACB45249093DDF3E1 /* MainViewController.swift in Sources */,
 				67170E25F1FBE936537B770C /* SceneDelegate.swift in Sources */,
+				FC3213F93AAF9A576EA2C0E6 /* SettingsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -253,67 +269,13 @@
 		0C201A3FC7831BDC68A77CEA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"DEBUG=1",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.2;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
@@ -323,15 +285,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HangeWubi/HangeWubi.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = HangeWubi/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app;
-				SDKROOT = iphoneos;
+				PRODUCT_NAME = HangeWubi;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -339,60 +296,13 @@
 		6102218AE71CC7463BC234DE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = 7H7QT6A3TG;
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.2;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -408,11 +318,6 @@
 					"$(PROJECT_DIR)/../../include",
 				);
 				INFOPLIST_FILE = HangeWubiKeyboard/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
 				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../../target/aarch64-apple-ios/release",
@@ -428,10 +333,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app.keyboard;
 				PRODUCT_NAME = HangeWubiKeyboard;
-				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = HangeWubiKeyboard/BridgingHeader.h;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -446,11 +349,6 @@
 					"$(PROJECT_DIR)/../../include",
 				);
 				INFOPLIST_FILE = HangeWubiKeyboard/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
 				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/../../target/aarch64-apple-ios/release",
@@ -466,10 +364,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app.keyboard;
 				PRODUCT_NAME = HangeWubiKeyboard;
-				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = HangeWubiKeyboard/BridgingHeader.h;
-				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -478,15 +374,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HangeWubi/HangeWubi.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				INFOPLIST_FILE = HangeWubi/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.hangewubi.app;
-				SDKROOT = iphoneos;
+				PRODUCT_NAME = HangeWubi;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;

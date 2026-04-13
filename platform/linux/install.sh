@@ -58,6 +58,11 @@ echo "  已安装: $DATA_DIR/wubi86.txt"
 install -m 644 "$PROJECT_ROOT/data/config.toml" "$DATA_DIR/"
 echo "  已安装: $DATA_DIR/config.toml"
 
+if [ -f "$PROJECT_ROOT/data/pinyin.txt" ]; then
+    install -m 644 "$PROJECT_ROOT/data/pinyin.txt" "$DATA_DIR/"
+    echo "  已安装: $DATA_DIR/pinyin.txt"
+fi
+
 # 安装 IBus 组件描述文件
 install -m 644 "$SCRIPT_DIR/ibus-hangewubi.xml" "$COMPONENT_DIR/"
 echo "  已安装: $COMPONENT_DIR/ibus-hangewubi.xml"

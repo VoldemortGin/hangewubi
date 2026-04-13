@@ -12,7 +12,7 @@ settings:
     SUPPORTED_PLATFORMS: iphoneos iphonesimulator
     SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
     MARKETING_VERSION: "1.2"
-    CURRENT_PROJECT_VERSION: "1"
+    CURRENT_PROJECT_VERSION: "11"
 
 targets:
   HangeWubi:
@@ -68,6 +68,8 @@ targets:
       - path: HangeWubiKeyboard/PrivacyInfo.xcprivacy
         buildPhase: resources
       - path: ../../data/wubi86.txt
+        buildPhase: resources
+      - path: ../../data/pinyin.txt
         buildPhase: resources
       - path: ../../data/config.toml
         buildPhase: resources

@@ -1,6 +1,8 @@
 package com.hangewubi.ime
 
+import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
+import android.preference.PreferenceManager
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -39,16 +41,56 @@ class HangeWubiIME : InputMethodService() {
                 Log.i(TAG, "Copied wubi86.txt to ${dictFile.absolutePath}")
             }
 
-            val count = engine.nativeInit(dictFile.absolutePath)
+            // 复制拼音词典
+            val pinyinFile = File(dataDir, "pinyin.txt")
+            if (!pinyinFile.exists()) {
+                try {
+                    assets.open("data/pinyin.txt").use { input ->
+                        FileOutputStream(pinyinFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Log.i(TAG, "Copied pinyin.txt to ${pinyinFile.absolutePath}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "pinyin.txt not found in assets, skipping")
+                }
+            }
+
+            val count = if (pinyinFile.exists()) {
+                engine.nativeInitWithPinyin(dictFile.absolutePath, pinyinFile.absolutePath)
+            } else {
+                engine.nativeInit(dictFile.absolutePath)
+            }
             if (count >= 0) {
                 engineReady = true
-                Log.i(TAG, "Engine initialized with $count entries")
+                Log.i(TAG, "Engine initialized with $count wubi entries, pinyin=${pinyinFile.exists()}")
+                applyConfig(pinyinFile.exists())
             } else {
                 Log.e(TAG, "Engine init failed")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to init engine", e)
         }
+    }
+
+    private fun applyConfig(pinyinDictLoaded: Boolean) {
+        val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+        val autoCommitUnique4 = prefs.getBoolean("auto_commit_unique_4", true)
+        val autoCommitFirst5 = prefs.getBoolean("auto_commit_first_5", false)
+        val enterKeyAction = prefs.getInt("enter_key_action", 0)
+        val emptyCodeAction = prefs.getInt("empty_code_action", 0)
+        val candidateCount = prefs.getInt("candidate_count", 5)
+        // 默认：拼音词典存在即启用混输，可通过偏好关闭
+        val pinyinEnabled = pinyinDictLoaded && prefs.getBoolean("pinyin_mixed_enabled", true)
+        engine.nativeSetConfig(
+            autoCommitUnique4,
+            autoCommitFirst5,
+            enterKeyAction,
+            emptyCodeAction,
+            candidateCount,
+            pinyinEnabled
+        )
+        Log.i(TAG, "Applied config: pinyinMixed=$pinyinEnabled")
     }
 
     override fun onCreateInputView(): View {

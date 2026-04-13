@@ -914,7 +914,8 @@ class InputController: IMKInputController {
             s.autoCommitFirst5,
             UInt8(s.enterKeyAction),
             UInt8(s.emptyCodeAction),
-            UInt8(s.candidateCountValue)
+            UInt8(s.candidateCountValue),
+            false // macOS 暂不启用拼音混输
         )
         debugLog("syncConfigToEngine: unique4=\(s.autoCommitUnique4) first5=\(s.autoCommitFirst5) enter=\(s.enterKeyAction) empty=\(s.emptyCodeAction) count=\(s.candidateCountValue)")
     }
