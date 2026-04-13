@@ -10,21 +10,17 @@ protocol KeyboardViewDelegate: AnyObject {
     func keyboardViewDidTapModeSwitch(_ view: KeyboardView)
 }
 
-/// iOS 系统风格的键盘视图。布局参照系统五笔键盘：
-/// - 字母键白底，功能键浅灰底，回车蓝底
-/// - 中/英 切换键替代 Shift 位置
-/// - 使用 SF Symbols 渲染功能图标
+/// iOS 系统风格键盘视图，布局按屏幕宽度等比缩放
 class KeyboardView: UIView {
 
     weak var delegate: KeyboardViewDelegate?
 
     private var keyButtons: [KeyButton] = []
-    private var modeToggleButton: KeyButton?  // 中/英 切换
+    private var modeToggleButton: KeyButton?
     private var deleteButton: KeyButton?
     private var deleteTimer: Timer?
     private var deleteRepeatStarted = false
 
-    /// 当前是否处于英文模式（影响中/英切换按键的高亮）
     var isEnglishMode = false {
         didSet { updateModeToggleAppearance() }
     }
@@ -33,9 +29,7 @@ class KeyboardView: UIView {
 
     var showGlobeKey: Bool = true {
         didSet {
-            if oldValue != showGlobeKey {
-                buildKeys()
-            }
+            if oldValue != showGlobeKey { buildKeys() }
         }
     }
 
@@ -46,9 +40,9 @@ class KeyboardView: UIView {
     // MARK: - Layouts
 
     private let letterRows: [[String]] = [
-        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
-        ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
-        ["z", "x", "c", "v", "b", "n", "m"],
+        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+        ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+        ["Z", "X", "C", "V", "B", "N", "M"],
     ]
 
     private let numberRows: [[String]] = [
@@ -57,12 +51,36 @@ class KeyboardView: UIView {
         [".", ",", "?", "!", "'"],
     ]
 
-    // MARK: - Layout constants
+    // MARK: - 等比计算的布局参数
 
     private var keySpacing: CGFloat { isIPad ? 8 : 6 }
     private var rowSpacing: CGFloat { isIPad ? 12 : 11 }
     private var edgeInset: CGFloat { isIPad ? 6 : 3 }
     private var keyCornerRadius: CGFloat { isIPad ? 6 : 5 }
+
+    /// 可用宽度（减去两侧边距）
+    private var availableWidth: CGFloat {
+        let w = UIScreen.main.bounds.width
+        return w - 2 * edgeInset
+    }
+
+    /// 第一排字母键宽度（10 键 + 9 间距平分）
+    private var letterKeyWidth: CGFloat {
+        (availableWidth - 9 * keySpacing) / 10
+    }
+
+    /// 第二排两侧缩进（让 9 键等宽并居中于 10 键行）
+    private var row2SidePadding: CGFloat {
+        (letterKeyWidth + keySpacing) / 2
+    }
+
+    /// 第三排功能键宽度（Shift/Delete 占据字母键以外的剩余空间）
+    private var functionalKeyWidth: CGFloat {
+        let rows = isNumberMode ? numberRows : letterRows
+        let letterCount = CGFloat(rows[2].count)
+        let lettersWidth = letterCount * letterKeyWidth + (letterCount - 1) * keySpacing
+        return (availableWidth - lettersWidth - 2 * keySpacing) / 2
+    }
 
     // MARK: - Init
 
@@ -83,7 +101,6 @@ class KeyboardView: UIView {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        // 系统会自动重绘 dynamic colors，无需重建按键
     }
 
     // MARK: - Build
@@ -105,18 +122,18 @@ class KeyboardView: UIView {
         addSubview(containerStack)
 
         for (rowIndex, row) in rows.enumerated() {
-            let rowStack = makeRowStack()
-
-            // 字母模式第二排两侧加 padding
-            if !isNumberMode && rowIndex == 1 {
+            // 第二排：两侧等比缩进
+            if rowIndex == 1 {
                 let wrapper = makeRowStack()
                 wrapper.distribution = .fill
+                let rowStack = makeRowStack()
+
                 let leftSpacer = UIView()
                 leftSpacer.translatesAutoresizingMaskIntoConstraints = false
-                leftSpacer.widthAnchor.constraint(equalToConstant: 18).isActive = true
+                leftSpacer.widthAnchor.constraint(equalToConstant: row2SidePadding).isActive = true
                 let rightSpacer = UIView()
                 rightSpacer.translatesAutoresizingMaskIntoConstraints = false
-                rightSpacer.widthAnchor.constraint(equalToConstant: 18).isActive = true
+                rightSpacer.widthAnchor.constraint(equalToConstant: row2SidePadding).isActive = true
 
                 wrapper.addArrangedSubview(leftSpacer)
                 wrapper.addArrangedSubview(rowStack)
@@ -127,7 +144,7 @@ class KeyboardView: UIView {
                 continue
             }
 
-            // 第三排：左边 中/英 或 #+= ，右边删除
+            // 第三排：左右各一个功能键
             if rowIndex == 2 {
                 let wrapper = makeRowStack()
                 wrapper.distribution = .fill
@@ -147,10 +164,11 @@ class KeyboardView: UIView {
                     modeToggleButton = leftKey
                     updateModeToggleAppearance()
                 }
-                let leftWidth: CGFloat = isIPad ? 70 : 44
-                leftKey.widthAnchor.constraint(equalToConstant: leftWidth).isActive = true
+                leftKey.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
                 wrapper.addArrangedSubview(leftKey)
 
+                let rowStack = makeRowStack()
+                addLetterKeys(row, into: rowStack)
                 wrapper.addArrangedSubview(rowStack)
 
                 let del = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
@@ -158,17 +176,16 @@ class KeyboardView: UIView {
                 del.tintColor = .label
                 del.addTarget(self, action: #selector(deleteTouchDown), for: .touchDown)
                 del.addTarget(self, action: #selector(deleteTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-                let delWidth: CGFloat = isIPad ? 70 : 44
-                del.widthAnchor.constraint(equalToConstant: delWidth).isActive = true
+                del.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
                 deleteButton = del
                 wrapper.addArrangedSubview(del)
 
-                addLetterKeys(row, into: rowStack)
                 containerStack.addArrangedSubview(wrapper)
                 continue
             }
 
-            // 普通行
+            // 第一排：普通行
+            let rowStack = makeRowStack()
             addLetterKeys(row, into: rowStack)
             containerStack.addArrangedSubview(rowStack)
         }
@@ -178,16 +195,16 @@ class KeyboardView: UIView {
         bottom.distribution = .fill
         bottom.spacing = keySpacing
 
-        let smallWidth: CGFloat = isIPad ? 60 : 42
-        let modeWidth: CGFloat = isIPad ? 70 : 48
-        let returnWidth: CGFloat = isIPad ? 120 : 88
+        // 底部键宽度根据屏幕等比计算
+        let bottomSmallWidth = letterKeyWidth * 1.2
+        let returnWidth = letterKeyWidth * 2.6
 
         if showGlobeKey {
             let globe = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
             globe.setImage(Self.symbolImage("globe", isIPad: isIPad), for: .normal)
             globe.tintColor = .label
             globe.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
-            globe.widthAnchor.constraint(equalToConstant: smallWidth).isActive = true
+            globe.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
             bottom.addArrangedSubview(globe)
         }
 
@@ -195,27 +212,21 @@ class KeyboardView: UIView {
         modeBtn.setTitle(isNumberMode ? "ABC" : "123", for: .normal)
         modeBtn.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
         modeBtn.addTarget(self, action: #selector(modeSwitchTapped), for: .touchUpInside)
-        modeBtn.widthAnchor.constraint(equalToConstant: modeWidth).isActive = true
+        modeBtn.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
         bottom.addArrangedSubview(modeBtn)
 
         let space = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
-        space.setTitle("空格", for: .normal)
-        space.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 15, weight: .regular)
+        space.setTitle(isEnglishMode ? "space" : "空格", for: .normal)
+        space.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .regular)
         space.tagKey = " "
         space.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
+        // 空格键不设固定宽度，让它填满剩余空间
+        space.setContentHuggingPriority(.defaultLow, for: .horizontal)
         bottom.addArrangedSubview(space)
 
-        let period = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-        period.setTitle("。", for: .normal)
-        period.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 22 : 20)
-        period.tagKey = "。"
-        period.addTarget(self, action: #selector(keyTapped(_:)), for: .touchUpInside)
-        period.widthAnchor.constraint(equalToConstant: smallWidth).isActive = true
-        bottom.addArrangedSubview(period)
-
         let returnBtn = KeyButton(style: .accent, cornerRadius: keyCornerRadius)
-        returnBtn.setImage(Self.symbolImage("return.left", isIPad: isIPad, weight: .semibold), for: .normal)
-        returnBtn.tintColor = .white
+        returnBtn.setTitle("换行", for: .normal)
+        returnBtn.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .medium)
         returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
         returnBtn.widthAnchor.constraint(equalToConstant: returnWidth).isActive = true
         bottom.addArrangedSubview(returnBtn)
@@ -226,7 +237,7 @@ class KeyboardView: UIView {
             containerStack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
             containerStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: edgeInset),
             containerStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -edgeInset),
-            containerStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            containerStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
         ])
     }
 
@@ -244,8 +255,8 @@ class KeyboardView: UIView {
             let button = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
             button.setTitle(key, for: .normal)
             button.titleLabel?.font = UIFont.systemFont(
-                ofSize: isIPad ? 24 : 22, weight: .regular)
-            button.tagKey = key
+                ofSize: isIPad ? 24 : 23, weight: .light)
+            button.tagKey = key.lowercased()
             button.addTarget(self, action: #selector(keyTapped(_:)), for: .touchUpInside)
             stack.addArrangedSubview(button)
             keyButtons.append(button)
@@ -273,11 +284,7 @@ class KeyboardView: UIView {
 
     private func updateModeToggleAppearance() {
         guard let btn = modeToggleButton else { return }
-        if isEnglishMode {
-            btn.setStyle(.functionalActive)
-        } else {
-            btn.setStyle(.functional)
-        }
+        btn.setStyle(isEnglishMode ? .functionalActive : .functional)
     }
 
     // MARK: - Actions
@@ -331,14 +338,13 @@ class KeyboardView: UIView {
 
 // MARK: - KeyButton
 
-/// 键盘按键。统一处理风格、按下高亮、阴影。
 final class KeyButton: UIButton {
 
     enum Style {
-        case letter            // 字母键 — 白底（dark 模式更亮的灰）
-        case functional        // 功能键 — 浅灰底
-        case functionalActive  // 功能键高亮态（中/英 当前为英文）
-        case accent            // 强调键 — 蓝底（回车）
+        case letter
+        case functional
+        case functionalActive
+        case accent
     }
 
     var tagKey: String?
@@ -408,10 +414,8 @@ final class KeyButton: UIButton {
         }
     }
 
-    // 在子类化按键里能可靠跟踪 dark mode 切换
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        // 颜色用 dynamic UIColor，会自动更新；shadow 颜色单独处理
         layer.shadowColor = UIColor.black.cgColor
     }
 
