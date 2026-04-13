@@ -82,6 +82,22 @@ Java_com_hangewubi_ime_EngineBridge_nativeInit(JNIEnv *env, jobject obj, jstring
     return (jlong)count;
 }
 
+JNIEXPORT jlong JNICALL
+Java_com_hangewubi_ime_EngineBridge_nativeInitWithPinyin(JNIEnv *env, jobject obj,
+        jstring dictPath, jstring pinyinDictPath) {
+    const char *path = (*env)->GetStringUTFChars(env, dictPath, NULL);
+    const char *pinyinPath = (*env)->GetStringUTFChars(env, pinyinDictPath, NULL);
+    if (path == NULL) return -1;
+
+    int64_t count = ffi_init_with_pinyin(path, pinyinPath);
+    LOGI("ffi_init_with_pinyin(\"%s\", \"%s\") returned %lld", path,
+         pinyinPath ? pinyinPath : "null", (long long)count);
+
+    (*env)->ReleaseStringUTFChars(env, dictPath, path);
+    if (pinyinPath) (*env)->ReleaseStringUTFChars(env, pinyinDictPath, pinyinPath);
+    return (jlong)count;
+}
+
 JNIEXPORT jobject JNICALL
 Java_com_hangewubi_ime_EngineBridge_nativeHandleKey(JNIEnv *env, jobject obj, jbyte key) {
     FfiResult result = ffi_handle_key((char)key);
@@ -185,10 +201,11 @@ Java_com_hangewubi_ime_EngineBridge_nativeGetCandidates(JNIEnv *env, jobject obj
 JNIEXPORT void JNICALL
 Java_com_hangewubi_ime_EngineBridge_nativeSetConfig(JNIEnv *env, jobject obj,
         jboolean autoCommitUnique4, jboolean autoCommitFirst5,
-        jint enterKeyAction, jint emptyCodeAction, jint candidateCount) {
+        jint enterKeyAction, jint emptyCodeAction, jint candidateCount,
+        jboolean pinyinMixedEnabled) {
     ffi_set_config(autoCommitUnique4, autoCommitFirst5,
                    (uint8_t)enterKeyAction, (uint8_t)emptyCodeAction,
-                   (uint8_t)candidateCount);
+                   (uint8_t)candidateCount, pinyinMixedEnabled);
 }
 
 JNIEXPORT void JNICALL

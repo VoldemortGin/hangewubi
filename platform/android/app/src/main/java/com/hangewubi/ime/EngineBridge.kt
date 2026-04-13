@@ -20,6 +20,7 @@ class EngineBridge {
     }
 
     external fun nativeInit(dictPath: String): Long
+    external fun nativeInitWithPinyin(dictPath: String, pinyinDictPath: String): Long
     external fun nativeHandleKey(key: Byte): EngineResult
     external fun nativeHandleSpace(): EngineResult
     external fun nativeHandleBackspace(): EngineResult
@@ -40,7 +41,8 @@ class EngineBridge {
         autoCommitFirst5: Boolean,
         enterKeyAction: Int,
         emptyCodeAction: Int,
-        candidateCount: Int
+        candidateCount: Int,
+        pinyinMixedEnabled: Boolean
     )
     external fun nativeAddUserWord(code: String, text: String)
     external fun nativeSaveUserDict(path: String): Boolean

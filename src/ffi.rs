@@ -1,5 +1,5 @@
 //! C FFI 导出层
-//! 为 macOS InputMethodKit 的 Swift 薄壳提供接口
+//! 为所有平台（macOS/iOS/Android/Windows/Linux）提供统一的 C 接口
 
 use crate::config::Config;
 use crate::dict::DictEngine;
@@ -86,6 +86,18 @@ fn action_to_ffi(action: EngineAction) -> FfiResult {
 /// 返回加载的词条数，失败返回 -1
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_init(dict_path: *const c_char) -> i64 {
+    ffi_init_with_pinyin(dict_path, std::ptr::null())
+}
+
+/// 初始化引擎（支持拼音混输）
+/// dict_path: 五笔码表路径
+/// pinyin_dict_path: 拼音词典路径（可为 null）
+/// 返回加载的词条数，失败返回 -1
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_init_with_pinyin(
+    dict_path: *const c_char,
+    pinyin_dict_path: *const c_char,
+) -> i64 {
     let path = if dict_path.is_null() {
         PathBuf::from("data/wubi86.txt")
     } else {
@@ -101,7 +113,18 @@ pub extern "C" fn ffi_init(dict_path: *const c_char) -> i64 {
 
     let config = Config::default();
     let user_dict = UserDict::new();
-    let new_engine = InputEngine::new(dict, user_dict, config);
+    let mut new_engine = InputEngine::new(dict, user_dict, config);
+
+    // 加载拼音词典（如果提供了路径）
+    if !pinyin_dict_path.is_null() {
+        let pinyin_path = unsafe { CStr::from_ptr(pinyin_dict_path) };
+        let pinyin_path = PathBuf::from(pinyin_path.to_string_lossy().as_ref());
+        let mut pinyin_dict = DictEngine::new();
+        if pinyin_dict.load_from_file(&pinyin_path).is_ok() {
+            new_engine.set_pinyin_dict(pinyin_dict);
+            new_engine.set_config(true, true, 0, 0, 5, true); // 默认启用拼音混输
+        }
+    }
 
     *ENGINE.lock().unwrap() = Some(new_engine);
 
@@ -285,6 +308,7 @@ pub extern "C" fn ffi_set_config(
     enter_key_action: u8,
     empty_code_action: u8,
     candidate_count: u8,
+    pinyin_mixed_enabled: bool,
 ) {
     with_engine(|e| {
         e.set_config(
@@ -293,6 +317,7 @@ pub extern "C" fn ffi_set_config(
             enter_key_action,
             empty_code_action,
             candidate_count as usize,
+            pinyin_mixed_enabled,
         );
     });
 }

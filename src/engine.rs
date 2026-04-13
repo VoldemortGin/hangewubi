@@ -43,6 +43,8 @@ pub struct InputEngine {
     candidates: Vec<Candidate>,
     /// 码表引擎
     dict: DictEngine,
+    /// 拼音词典（可选）
+    pinyin_dict: Option<DictEngine>,
     /// 用户词典
     user_dict: UserDict,
     /// 配置
@@ -63,6 +65,7 @@ impl InputEngine {
             buffer: String::new(),
             candidates: Vec::new(),
             dict,
+            pinyin_dict: None,
             user_dict,
             config,
             mode: InputMode::Chinese,
@@ -70,6 +73,11 @@ impl InputEngine {
             temp_english_buffer: String::new(),
             current_page: 0,
         }
+    }
+
+    /// 设置拼音词典
+    pub fn set_pinyin_dict(&mut self, pinyin_dict: DictEngine) {
+        self.pinyin_dict = Some(pinyin_dict);
     }
 
     /// 获取当前编码
@@ -125,8 +133,12 @@ impl InputEngine {
         self.buffer.push(key);
         self.update_candidates();
 
-        // 四码唯一自动上屏
-        if self.config.auto_commit_on_unique_four
+        // 拼音混输模式下，编码可能超过4码，放宽自动上屏限制
+        let pinyin_active = self.config.pinyin_mixed_enabled && self.pinyin_dict.is_some();
+
+        // 四码唯一自动上屏（拼音混输时跳过，因为用户可能在输入拼音）
+        if !pinyin_active
+            && self.config.auto_commit_on_unique_four
             && self.buffer.len() == 4
             && self.candidates.len() == 1
         {
@@ -137,8 +149,9 @@ impl InputEngine {
             return EngineAction::Commit(text);
         }
 
-        // 五码首选自动上屏
-        if self.config.auto_commit_first_five
+        // 五码首选自动上屏（拼音混输时跳过）
+        if !pinyin_active
+            && self.config.auto_commit_first_five
             && self.buffer.len() == 5
             && !self.candidates.is_empty()
         {
@@ -149,8 +162,8 @@ impl InputEngine {
             return EngineAction::Commit(text);
         }
 
-        // 四码无匹配
-        if self.buffer.len() == 4 && self.candidates.is_empty() {
+        // 四码无匹配（拼音混输时跳过）
+        if !pinyin_active && self.buffer.len() == 4 && self.candidates.is_empty() {
             match self.config.empty_code_action {
                 0 => {
                     // 转临时英文模式
@@ -454,11 +467,11 @@ impl InputEngine {
             });
         }
 
-        // 再查主码表
+        // 再查主码表（五笔）
         let dict_entries = self.dict.lookup(
             &self.buffer,
             self.config.wildcard_z_enabled,
-            max_candidates, // 取更多候选以支持翻页
+            max_candidates,
         );
         let buffer_len = self.buffer.len();
         for entry in dict_entries {
@@ -475,6 +488,30 @@ impl InputEngine {
             }
         }
 
+        // 查拼音词典（如果启用混输）
+        if self.config.pinyin_mixed_enabled {
+            if let Some(ref pinyin_dict) = self.pinyin_dict {
+                let pinyin_entries = pinyin_dict.lookup(
+                    &self.buffer,
+                    false, // 拼音不使用万能键
+                    max_candidates,
+                );
+                for entry in pinyin_entries {
+                    // 避免与已有候选重复（按汉字去重）
+                    if !self.candidates.iter().any(|c| c.text == entry.text) {
+                        // 拼音精确匹配加成低于五笔，前缀匹配不加成
+                        let weight_boost = if entry.code.len() == buffer_len { 1000 } else { 0 };
+                        self.candidates.push(Candidate {
+                            code: entry.code.clone(),
+                            text: entry.text.clone(),
+                            weight: entry.weight + weight_boost,
+                            is_user: false,
+                        });
+                    }
+                }
+            }
+        }
+
         // 按权重排序（精确匹配因加成自然排前面）
         self.candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
         self.candidates.truncate(max_candidates);
@@ -488,12 +525,14 @@ impl InputEngine {
         enter_key_action: u8,
         empty_code_action: u8,
         candidate_count: usize,
+        pinyin_mixed_enabled: bool,
     ) {
         self.config.auto_commit_on_unique_four = auto_commit_unique_4;
         self.config.auto_commit_first_five = auto_commit_first_5;
         self.config.enter_key_action = enter_key_action;
         self.config.empty_code_action = empty_code_action;
         self.config.candidate_count = candidate_count;
+        self.config.pinyin_mixed_enabled = pinyin_mixed_enabled;
     }
 
     /// 获取用户词典引用（用于保存等操作）
@@ -749,5 +788,126 @@ gglf\t王\t8000
         assert_eq!(action1, EngineAction::Commit("\u{201c}".to_string()));
         let action2 = engine.handle_punctuation('"');
         assert_eq!(action2, EngineAction::Commit("\u{201d}".to_string()));
+    }
+
+    // --- 拼音混输测试 ---
+
+    fn create_pinyin_test_engine() -> InputEngine {
+        let mut dict = DictEngine::new();
+        dict.load_from_str(
+            "a\t工\t9999
+aa\t式\t5000
+gglf\t王\t8000
+gggg\t王\t7000
+bbbb\t子\t5500
+",
+        );
+
+        let mut pinyin_dict = DictEngine::new();
+        pinyin_dict.load_from_str(
+            "wang\t王\t9000
+wang\t网\t8500
+wang\t忘\t7000
+wang\t望\t6500
+wo\t我\t9500
+wo\t窝\t3000
+ni\t你\t9400
+zhongguo\t中国\t9000
+zhong\t中\t8000
+zhong\t钟\t5000
+",
+        );
+
+        let config = Config {
+            candidate_count: 5,
+            auto_commit_on_unique_four: true,
+            wildcard_z_enabled: true,
+            pinyin_mixed_enabled: true,
+            ..Config::default()
+        };
+
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        engine.set_pinyin_dict(pinyin_dict);
+        engine
+    }
+
+    #[test]
+    fn test_pinyin_candidates_appear() {
+        let mut engine = create_pinyin_test_engine();
+        // 输入 "wo" 应该出现拼音候选 "我"
+        engine.handle_key('w');
+        engine.handle_key('o');
+        let candidates = engine.candidates();
+        assert!(!candidates.is_empty());
+        assert!(candidates.iter().any(|c| c.text == "我"));
+    }
+
+    #[test]
+    fn test_wubi_priority_over_pinyin() {
+        let mut engine = create_pinyin_test_engine();
+        // 输入 "a" 五笔匹配 "工"，应排在拼音结果之前
+        engine.handle_key('a');
+        let candidates = engine.candidates();
+        assert_eq!(candidates[0].text, "工");
+    }
+
+    #[test]
+    fn test_pinyin_long_input() {
+        let mut engine = create_pinyin_test_engine();
+        // 输入 "zhongguo" 应匹配拼音 "中国"
+        for c in "zhongguo".chars() {
+            engine.handle_key(c);
+        }
+        let candidates = engine.candidates();
+        assert!(candidates.iter().any(|c| c.text == "中国"));
+    }
+
+    #[test]
+    fn test_pinyin_no_auto_commit_at_four() {
+        let mut engine = create_pinyin_test_engine();
+        // 拼音混输模式下，四码不应自动上屏（用户可能在打拼音）
+        engine.handle_key('g');
+        engine.handle_key('g');
+        engine.handle_key('l');
+        let action = engine.handle_key('f');
+        // 不应自动提交，应该继续显示候选
+        assert_eq!(action, EngineAction::UpdateCandidates);
+    }
+
+    #[test]
+    fn test_pinyin_disabled() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("a\t工\t9999\n");
+
+        let mut pinyin_dict = DictEngine::new();
+        pinyin_dict.load_from_str("wo\t我\t9500\n");
+
+        let config = Config {
+            pinyin_mixed_enabled: false,
+            ..Config::default()
+        };
+
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        engine.set_pinyin_dict(pinyin_dict);
+
+        engine.handle_key('w');
+        engine.handle_key('o');
+        let candidates = engine.candidates();
+        // 拼音关闭时不应出现拼音候选
+        assert!(!candidates.iter().any(|c| c.text == "我"));
+    }
+
+    #[test]
+    fn test_pinyin_dedup_with_wubi() {
+        let mut engine = create_pinyin_test_engine();
+        // 输入 "wang" 五笔无精确匹配，拼音有 "王"
+        // 五笔的 "王" 在 gggg/gglf 下，"wang" 前缀不匹配五笔
+        for c in "wang".chars() {
+            engine.handle_key(c);
+        }
+        let candidates = engine.candidates();
+        // "王" 应只出现一次（来自拼音）
+        let wang_count = candidates.iter().filter(|c| c.text == "王").count();
+        assert_eq!(wang_count, 1);
     }
 }

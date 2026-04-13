@@ -449,20 +449,24 @@ main(int argc, char **argv)
 
     /* 构建码表路径 */
     gchar *dict_path = g_build_filename(data_dir, "wubi86.txt", NULL);
+    gchar *pinyin_path = g_build_filename(data_dir, "pinyin.txt", NULL);
 
     g_message("晗戈五笔 IBus 引擎启动");
     g_message("数据目录: %s", data_dir);
     g_message("码表路径: %s", dict_path);
 
-    /* 初始化输入引擎 */
-    int64_t count = ffi_init(dict_path);
+    /* 初始化输入引擎（支持拼音混输） */
+    const char *pinyin_ptr = g_file_test(pinyin_path, G_FILE_TEST_EXISTS) ? pinyin_path : NULL;
+    int64_t count = ffi_init_with_pinyin(dict_path, pinyin_ptr);
     if (count < 0) {
         g_printerr("无法加载码表: %s\n", dict_path);
         g_free(dict_path);
+        g_free(pinyin_path);
         return 1;
     }
-    g_message("已加载 %ld 条词条", (long)count);
+    g_message("已加载 %ld 条五笔词条, 拼音=%s", (long)count, pinyin_ptr ? "是" : "否");
     g_free(dict_path);
+    g_free(pinyin_path);
 
     /* 加载配置文件（如果存在） */
     gchar *config_path = g_build_filename(data_dir, "config.toml", NULL);

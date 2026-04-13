@@ -73,6 +73,10 @@ echo "--- Copying data files to assets ---"
 mkdir -p "$ASSETS_DATA_DIR"
 cp "$PROJECT_ROOT/data/wubi86.txt" "$ASSETS_DATA_DIR/"
 echo "Copied wubi86.txt"
+if [ -f "$PROJECT_ROOT/data/pinyin.txt" ]; then
+    cp "$PROJECT_ROOT/data/pinyin.txt" "$ASSETS_DATA_DIR/"
+    echo "Copied pinyin.txt"
+fi
 
 # Step 2: Build Rust shared library for each ABI using cargo-ndk
 echo ""
