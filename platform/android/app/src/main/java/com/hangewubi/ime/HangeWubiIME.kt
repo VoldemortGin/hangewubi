@@ -1,8 +1,8 @@
 package com.hangewubi.ime
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
-import android.preference.PreferenceManager
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -18,8 +18,13 @@ class HangeWubiIME : InputMethodService() {
 
     val engine = EngineBridge()
     private var engineReady = false
-    private lateinit var kbView: KeyboardView
-    private lateinit var candView: CandidateView
+    private var kbView: KeyboardView? = null
+    private var candView: CandidateView? = null
+
+    private val prefs: SharedPreferences
+        get() = getSharedPreferences(SettingsKey.PREFS_NAME, Context.MODE_PRIVATE)
+
+    private var pinyinDictLoaded = false
 
     override fun onCreate() {
         super.onCreate()
@@ -56,15 +61,16 @@ class HangeWubiIME : InputMethodService() {
                 }
             }
 
-            val count = if (pinyinFile.exists()) {
+            pinyinDictLoaded = pinyinFile.exists()
+            val count = if (pinyinDictLoaded) {
                 engine.nativeInitWithPinyin(dictFile.absolutePath, pinyinFile.absolutePath)
             } else {
                 engine.nativeInit(dictFile.absolutePath)
             }
             if (count >= 0) {
                 engineReady = true
-                Log.i(TAG, "Engine initialized with $count wubi entries, pinyin=${pinyinFile.exists()}")
-                applyConfig(pinyinFile.exists())
+                Log.i(TAG, "Engine initialized with $count wubi entries, pinyin=$pinyinDictLoaded")
+                applyConfig()
             } else {
                 Log.e(TAG, "Engine init failed")
             }
@@ -73,15 +79,26 @@ class HangeWubiIME : InputMethodService() {
         }
     }
 
-    private fun applyConfig(pinyinDictLoaded: Boolean) {
-        val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
-        val autoCommitUnique4 = prefs.getBoolean("auto_commit_unique_4", true)
-        val autoCommitFirst5 = prefs.getBoolean("auto_commit_first_5", false)
-        val enterKeyAction = prefs.getInt("enter_key_action", 0)
-        val emptyCodeAction = prefs.getInt("empty_code_action", 0)
-        val candidateCount = prefs.getInt("candidate_count", 5)
-        // 默认：拼音词典存在即启用混输，可通过偏好关闭
-        val pinyinEnabled = pinyinDictLoaded && prefs.getBoolean("pinyin_mixed_enabled", true)
+    private fun applyConfig() {
+        if (!engineReady) return
+        val p = prefs
+        val autoCommitUnique4 = p.getBoolean(SettingsKey.AUTO_COMMIT_UNIQUE_4, true)
+        val autoCommitFirst5 = p.getBoolean(SettingsKey.AUTO_COMMIT_FIRST_5, false)
+        val enterKeyAction = p.getIntFromString(
+            SettingsKey.ENTER_KEY_ACTION,
+            SettingsKey.DEFAULT_ENTER_KEY_ACTION
+        )
+        val emptyCodeAction = p.getIntFromString(
+            SettingsKey.EMPTY_CODE_ACTION,
+            SettingsKey.DEFAULT_EMPTY_CODE_ACTION
+        )
+        val candidateCount = p.getIntFromString(
+            SettingsKey.CANDIDATE_COUNT,
+            SettingsKey.DEFAULT_CANDIDATE_COUNT
+        )
+        val pinyinEnabled = pinyinDictLoaded && p.getBoolean(SettingsKey.PINYIN_MIXED_ENABLED, true)
+        val hapticEnabled = p.getBoolean(SettingsKey.HAPTIC_ENABLED, true)
+
         engine.nativeSetConfig(
             autoCommitUnique4,
             autoCommitFirst5,
@@ -90,24 +107,31 @@ class HangeWubiIME : InputMethodService() {
             candidateCount,
             pinyinEnabled
         )
-        Log.i(TAG, "Applied config: pinyinMixed=$pinyinEnabled")
+        kbView?.hapticEnabled = hapticEnabled
+        Log.i(TAG, "Applied config: pinyinMixed=$pinyinEnabled haptic=$hapticEnabled cand=$candidateCount")
     }
 
     override fun onCreateInputView(): View {
-        kbView = KeyboardView(this)
-        kbView.setIME(this)
-        return kbView
+        val view = KeyboardView(this)
+        view.setIME(this)
+        kbView = view
+        // 首次创建时应用一次配置
+        applyConfig()
+        return view
     }
 
     override fun onCreateCandidatesView(): View {
-        candView = CandidateView(this)
-        candView.setIME(this)
+        val view = CandidateView(this)
+        view.setIME(this)
+        candView = view
         setCandidatesViewShown(false)
-        return candView
+        return view
     }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        // 每次进入输入框都重新读取配置，设置页修改能立即生效
+        applyConfig()
         if (!restarting && engineReady) {
             engine.nativeHandleEscape()
             updateUI()
@@ -147,7 +171,6 @@ class HangeWubiIME : InputMethodService() {
                 engine.nativeHandleKey(ch)
             }
             else -> {
-                // Try as punctuation
                 val ch = keyCodeToChar(keyCode)
                 if (ch != null) {
                     engine.nativeHandlePunctuation(ch.code.toByte())
@@ -160,9 +183,17 @@ class HangeWubiIME : InputMethodService() {
         processResult(result)
     }
 
+    fun onPunctuation(ch: Char) {
+        if (!engineReady) {
+            currentInputConnection?.commitText(ch.toString(), 1)
+            return
+        }
+        processResult(engine.nativeHandlePunctuation(ch.code.toByte()))
+    }
+
     fun onCandidateSelected(index: Int) {
         if (!engineReady) return
-        // Candidates are 1-indexed in the engine (number key selection)
+        // 引擎中数字键选词是 1-indexed
         val result = engine.nativeHandleNumber(index + 1)
         processResult(result)
     }
@@ -205,7 +236,7 @@ class HangeWubiIME : InputMethodService() {
                 updateUI()
             }
             EngineBridge.EngineResult.ACTION_UNHANDLED -> {
-                // Pass through to app
+                // 透传到应用
             }
         }
     }
@@ -223,12 +254,8 @@ class HangeWubiIME : InputMethodService() {
             setCandidatesViewShown(candidates.isNotEmpty())
         }
 
-        if (::candView.isInitialized) {
-            candView.update(buffer, candidates)
-        }
-        if (::kbView.isInitialized) {
-            kbView.updateModeIndicator(engine.nativeGetMode())
-        }
+        candView?.update(buffer, candidates)
+        kbView?.updateModeIndicator(engine.nativeGetMode())
     }
 
     private fun keyCodeToChar(keyCode: Int): Char? {
@@ -244,5 +271,14 @@ class HangeWubiIME : InputMethodService() {
             KeyEvent.KEYCODE_GRAVE -> '`'
             else -> null
         }
+    }
+}
+
+// Preference 的 ListPreference 存的是字符串，这里容错地按 int 读取。
+private fun SharedPreferences.getIntFromString(key: String, default: Int): Int {
+    return when (val v = all[key]) {
+        is Int -> v
+        is String -> v.toIntOrNull() ?: default
+        else -> default
     }
 }

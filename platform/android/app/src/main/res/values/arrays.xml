@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="candidate_count_entries">
+        <item>3</item>
+        <item>5</item>
+        <item>7</item>
+        <item>9</item>
+    </string-array>
+    <string-array name="candidate_count_values">
+        <item>3</item>
+        <item>5</item>
+        <item>7</item>
+        <item>9</item>
+    </string-array>
+
+    <string-array name="enter_action_entries">
+        <item>上屏编码原文</item>
+        <item>清空缓冲并换行</item>
+    </string-array>
+    <string-array name="enter_action_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="empty_action_entries">
+        <item>保留缓冲</item>
+        <item>清空缓冲</item>
+    </string-array>
+    <string-array name="empty_action_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+</resources>

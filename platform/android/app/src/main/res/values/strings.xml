@@ -3,4 +3,39 @@
     <string name="app_name">晗戈五笔</string>
     <string name="ime_name">晗戈五笔</string>
     <string name="subtype_wubi">五笔86</string>
+
+    <!-- MainActivity -->
+    <string name="main_icon">晗</string>
+    <string name="main_version_prefix">版本 </string>
+    <string name="main_enable_title">如何启用键盘</string>
+    <string name="main_enable_steps">1. 打开「设置」应用\n2. 进入「系统」→「语言和输入法」→「屏幕键盘」\n3. 打开「晗戈五笔」的开关\n4. 在任意输入框点击键盘切换按钮（🌐）选择「晗戈五笔」</string>
+    <string name="main_btn_ime_settings">打开输入法设置</string>
+    <string name="main_btn_switch_ime">切换当前输入法</string>
+    <string name="main_btn_app_settings">应用设置</string>
+    <string name="main_about_title">关于</string>
+    <string name="main_about_body">晗戈五笔是一款基于 Rust 引擎的开源五笔输入法，支持五笔拼音混输。\n\n由 Rust 核心 + Android InputMethodService 实现。</string>
+
+    <!-- Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_section_input">输入设置</string>
+    <string name="settings_section_wubi">五笔设置</string>
+    <string name="settings_section_keyboard">键盘</string>
+
+    <string name="settings_pinyin_mixed_title">五笔拼音混输</string>
+    <string name="settings_pinyin_mixed_summary">输入五笔编码的同时匹配拼音候选词，五笔结果优先显示。</string>
+
+    <string name="settings_auto_commit_unique_title">四码唯一自动上屏</string>
+    <string name="settings_auto_commit_unique_summary">满四码且唯一匹配时，自动上屏。</string>
+
+    <string name="settings_auto_commit_first_title">五码首选自动上屏</string>
+    <string name="settings_auto_commit_first_summary">满五码时直接上屏首选候选。</string>
+
+    <string name="settings_candidate_count_title">候选数量</string>
+    <string name="settings_candidate_count_summary">每页显示的候选词数量（3 ~ 9）。</string>
+
+    <string name="settings_haptic_title">按键震动反馈</string>
+    <string name="settings_haptic_summary">每次按键时产生轻微震动。若无效果请检查系统「设置 → 声音与震动 → 触感」。</string>
+
+    <string name="settings_enter_action_title">回车键行为</string>
+    <string name="settings_empty_action_title">空码处理</string>
 </resources>

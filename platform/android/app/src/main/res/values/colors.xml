@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1565C0</color>
+    <color name="primary_dark">#0D47A1</color>
+    <color name="accent">#4CAF50</color>
+    <color name="accent_dark">#388E3C</color>
+    <color name="ic_launcher_background">#1565C0</color>
+
+    <!-- 键盘浅色模式 -->
+    <color name="keyboard_bg">#D5D8DE</color>
+    <color name="key_bg">#FFFFFF</color>
+    <color name="key_bg_special">#B0BEC5</color>
+    <color name="key_bg_pressed">#D0D0D0</color>
+    <color name="key_shadow">#BDBDBD</color>
+    <color name="key_label">#212121</color>
+    <color name="key_sublabel">#757575</color>
+    <color name="candidate_bg">#F5F5F5</color>
+    <color name="candidate_highlight">#E3F2FD</color>
+    <color name="candidate_separator">#E0E0E0</color>
+    <color name="candidate_divider">#BDBDBD</color>
+</resources>

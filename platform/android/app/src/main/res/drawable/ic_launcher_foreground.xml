@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 适配 adaptive icon 的安全区域（center 72x72） -->
+    <group
+        android:scaleX="1.4"
+        android:scaleY="1.4"
+        android:translateX="22"
+        android:translateY="22">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M14,14 L34,14 L34,16 L14,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M16,16 L16,34 L18,34 L18,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,16 L30,34 L32,34 L32,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18,24 L30,24 L30,26 L18,26 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M22,16 L22,34 L24,34 L24,16 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M26,16 L26,34 L28,34 L28,16 Z" />
+    </group>
+</vector>

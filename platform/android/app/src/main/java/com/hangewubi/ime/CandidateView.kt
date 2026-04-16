@@ -1,14 +1,15 @@
 package com.hangewubi.ime
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import androidx.core.content.ContextCompat
 
 class CandidateView @JvmOverloads constructor(
     context: Context,
@@ -19,47 +20,31 @@ class CandidateView @JvmOverloads constructor(
     private var preedit: String = ""
     private var candidates: Array<EngineBridge.Candidate> = emptyArray()
 
-    // Layout info: list of (rectF, index) for each candidate cell
+    // 候选词命中区域（矩形 + 索引）
     private val candidateRects = mutableListOf<Pair<RectF, Int>>()
 
-    private val bgPaint = Paint().apply {
-        color = Color.parseColor("#F5F5F5")
-        style = Paint.Style.FILL
-    }
+    private val bgPaint = Paint().apply { style = Paint.Style.FILL }
     private val preeditPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#1565C0")
         textAlign = Paint.Align.LEFT
         typeface = Typeface.DEFAULT_BOLD
     }
     private val candidateTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#212121")
         textAlign = Paint.Align.LEFT
         typeface = Typeface.DEFAULT
     }
-    private val candidateCodePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#9E9E9E")
-        textAlign = Paint.Align.LEFT
-    }
-    private val indexPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#757575")
-        textAlign = Paint.Align.LEFT
-    }
-    private val firstCandBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#E3F2FD")
-        style = Paint.Style.FILL
-    }
-    private val separatorPaint = Paint().apply {
-        color = Color.parseColor("#E0E0E0")
-        strokeWidth = 1f
-    }
-    private val dividerPaint = Paint().apply {
-        color = Color.parseColor("#BDBDBD")
-        strokeWidth = 1f
-    }
+    private val candidateCodePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT }
+    private val indexPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.LEFT }
+    private val firstCandBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    private val separatorPaint = Paint().apply { strokeWidth = 1f }
+    private val dividerPaint = Paint().apply { strokeWidth = 1f }
 
-    // Page navigation
+    // 翻页按钮
     private var prevPageRect = RectF()
     private var nextPageRect = RectF()
+
+    init {
+        refreshPalette()
+    }
 
     fun setIME(ime: HangeWubiIME) {
         this.ime = ime
@@ -70,6 +55,23 @@ class CandidateView @JvmOverloads constructor(
         candidates = newCandidates
         requestLayout()
         invalidate()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        refreshPalette()
+        invalidate()
+    }
+
+    private fun refreshPalette() {
+        bgPaint.color = ContextCompat.getColor(context, R.color.candidate_bg)
+        preeditPaint.color = ContextCompat.getColor(context, R.color.primary)
+        candidateTextPaint.color = ContextCompat.getColor(context, R.color.key_label)
+        candidateCodePaint.color = ContextCompat.getColor(context, R.color.key_sublabel)
+        indexPaint.color = ContextCompat.getColor(context, R.color.key_sublabel)
+        firstCandBgPaint.color = ContextCompat.getColor(context, R.color.candidate_highlight)
+        separatorPaint.color = ContextCompat.getColor(context, R.color.candidate_separator)
+        dividerPaint.color = ContextCompat.getColor(context, R.color.candidate_divider)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -95,29 +97,22 @@ class CandidateView @JvmOverloads constructor(
 
         candidateRects.clear()
 
-        // Background
         canvas.drawRect(0f, 0f, w, h, bgPaint)
-
-        // Top divider
         canvas.drawLine(0f, 0f, w, 0f, dividerPaint)
 
         var x = padding
 
-        // Preedit text
         if (preedit.isNotEmpty()) {
             val textY = h / 2f - (preeditPaint.descent() + preeditPaint.ascent()) / 2f
             canvas.drawText(preedit, x, textY, preeditPaint)
             x += preeditPaint.measureText(preedit) + padding * 2
-
-            // Separator after preedit
             canvas.drawLine(x - padding, padding, x - padding, h - padding, separatorPaint)
         }
 
-        // Navigation arrows area (reserve right side)
         val navWidth = density * 40f
         val arrowSize = density * 18f
         val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#757575")
+            color = ContextCompat.getColor(context, R.color.key_sublabel)
             this.textSize = arrowSize
             textAlign = Paint.Align.CENTER
         }
@@ -126,7 +121,6 @@ class CandidateView @JvmOverloads constructor(
         prevPageRect.set(w - navWidth * 2, 0f, w - navWidth, h)
         nextPageRect.set(w - navWidth, 0f, w, h)
 
-        // Draw candidates
         val maxX = w - navWidth * 2 - padding
 
         for (i in candidates.indices) {
@@ -140,7 +134,6 @@ class CandidateView @JvmOverloads constructor(
 
             val cellRect = RectF(x - padding / 2, 2f, x + cellWidth - padding, h - 2f)
 
-            // Highlight first candidate
             if (i == 0) {
                 canvas.drawRoundRect(cellRect, density * 4f, density * 4f, firstCandBgPaint)
             }
@@ -149,21 +142,17 @@ class CandidateView @JvmOverloads constructor(
 
             val textY = h / 2f - (candidateTextPaint.descent() + candidateTextPaint.ascent()) / 2f
 
-            // Index
             canvas.drawText(indexStr, x, textY, indexPaint)
             x += indexWidth + padding * 0.5f
 
-            // Candidate text
             canvas.drawText(cand.text, x, textY, candidateTextPaint)
             x += textWidth + padding * 2
 
-            // Separator
             if (i < candidates.size - 1 && x < maxX) {
                 canvas.drawLine(x - padding, padding, x - padding, h - padding, separatorPaint)
             }
         }
 
-        // Draw page navigation arrows
         if (candidates.isNotEmpty()) {
             canvas.drawLine(w - navWidth * 2, padding, w - navWidth * 2, h - padding, separatorPaint)
             canvas.drawText("\u25C0", prevPageRect.centerX(), arrowY, arrowPaint)
@@ -176,7 +165,6 @@ class CandidateView @JvmOverloads constructor(
             val x = event.x
             val y = event.y
 
-            // Check page navigation
             if (prevPageRect.contains(x, y)) {
                 ime?.onPrevPage()
                 return true
@@ -186,7 +174,6 @@ class CandidateView @JvmOverloads constructor(
                 return true
             }
 
-            // Check candidate selection
             for ((rect, index) in candidateRects) {
                 if (rect.contains(x, y)) {
                     ime?.onCandidateSelected(index)
