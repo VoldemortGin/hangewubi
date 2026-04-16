@@ -23,10 +23,17 @@ class KeyboardViewController: UIInputViewController {
         NSLog("[HangeWubi] viewWillAppear called")
         keyboardView?.showGlobeKey = needsInputModeSwitchKey
         updateHeight()
+        updateReturnKey()
         // 每次键盘显示时重新加载设置（用户可能在主 App 中修改了设置）
+        applySharedSettingsFromDefaults()
         if engineInitialized {
             applySharedSettings(hasPinyin: true)
         }
+    }
+
+    override func textDidChange(_ textInput: UITextInput?) {
+        super.textDidChange(textInput)
+        updateReturnKey()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -92,6 +99,39 @@ class KeyboardViewController: UIInputViewController {
         let autoCommit5 = defaults?.object(forKey: "auto_commit_first_5") as? Bool ?? true
         ffi_set_config(autoCommit4, autoCommit5, 0, 0, 5, pinyinEnabled)
         NSLog("[HangeWubi] Settings applied: pinyin=\(pinyinEnabled) auto4=\(autoCommit4) auto5=\(autoCommit5)")
+    }
+
+    /// 从 App Group 读取只作用于键盘视图的设置（震动等）
+    private func applySharedSettingsFromDefaults() {
+        let defaults = UserDefaults(suiteName: "group.com.hangewubi.app")
+        let haptic = defaults?.bool(forKey: "haptic_enabled") ?? false
+        keyboardView?.hapticEnabled = haptic
+    }
+
+    /// 根据宿主 App 的 returnKeyType 动态设置换行键文案与颜色
+    private func updateReturnKey() {
+        guard let keyboardView = keyboardView else { return }
+        let type = textDocumentProxy.returnKeyType ?? .default
+        let (title, isAction) = Self.returnKeyAttributes(for: type)
+        keyboardView.returnTitle = title
+        keyboardView.returnStyle = isAction ? .action : .normal
+    }
+
+    private static func returnKeyAttributes(for type: UIReturnKeyType) -> (String, Bool) {
+        switch type {
+        case .go:       return ("前往", true)
+        case .google:   return ("Google", true)
+        case .join:     return ("加入", true)
+        case .next:     return ("下一项", false)
+        case .route:    return ("路线", true)
+        case .search:   return ("搜索", true)
+        case .send:     return ("发送", true)
+        case .yahoo:    return ("Yahoo", true)
+        case .done:     return ("完成", true)
+        case .emergencyCall: return ("紧急呼叫", true)
+        case .continue: return ("继续", true)
+        default:        return ("换行", false)
+        }
     }
 
     // MARK: - UI Setup

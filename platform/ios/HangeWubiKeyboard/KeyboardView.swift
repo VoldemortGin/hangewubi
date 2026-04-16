@@ -10,22 +10,60 @@ protocol KeyboardViewDelegate: AnyObject {
     func keyboardViewDidTapModeSwitch(_ view: KeyboardView)
 }
 
-/// iOS 系统风格键盘视图，布局按屏幕宽度等比缩放
+/// iOS 系统风格键盘视图，视觉对齐苹果简体中文键盘
 class KeyboardView: UIView {
+
+    /// 换行键样式：普通(灰)对应 .default 换行；action(蓝)对应搜索/发送/完成等
+    enum ReturnStyle {
+        case normal
+        case action
+    }
 
     weak var delegate: KeyboardViewDelegate?
 
     private var keyButtons: [KeyButton] = []
     private var modeToggleButton: KeyButton?
     private var deleteButton: KeyButton?
+    private var returnButton: KeyButton?
+    private var spaceButton: KeyButton?
     private var deleteTimer: Timer?
     private var deleteRepeatStarted = false
 
+    private let keyPreview = KeyPreviewView()
+
+    private var impactGen: UIImpactFeedbackGenerator?
+
+    // MARK: - Public state
+
+    var hapticEnabled: Bool = false {
+        didSet {
+            if hapticEnabled {
+                if impactGen == nil {
+                    impactGen = UIImpactFeedbackGenerator(style: .light)
+                    impactGen?.prepare()
+                }
+            } else {
+                impactGen = nil
+            }
+        }
+    }
+
     var isEnglishMode = false {
-        didSet { updateModeToggleAppearance() }
+        didSet {
+            updateModeToggleAppearance()
+            updateSpaceLabel()
+        }
     }
 
     private(set) var isNumberMode = false
+
+    var returnTitle: String = "换行" {
+        didSet { returnButton?.setTitle(returnTitle, for: .normal) }
+    }
+
+    var returnStyle: ReturnStyle = .normal {
+        didSet { updateReturnStyle() }
+    }
 
     var showGlobeKey: Bool = true {
         didSet {
@@ -58,23 +96,19 @@ class KeyboardView: UIView {
     private var edgeInset: CGFloat { isIPad ? 6 : 3 }
     private var keyCornerRadius: CGFloat { isIPad ? 6 : 5 }
 
-    /// 可用宽度（减去两侧边距）
     private var availableWidth: CGFloat {
         let w = UIScreen.main.bounds.width
         return w - 2 * edgeInset
     }
 
-    /// 第一排字母键宽度（10 键 + 9 间距平分）
     private var letterKeyWidth: CGFloat {
         (availableWidth - 9 * keySpacing) / 10
     }
 
-    /// 第二排两侧缩进（让 9 键等宽并居中于 10 键行）
     private var row2SidePadding: CGFloat {
         (letterKeyWidth + keySpacing) / 2
     }
 
-    /// 第三排功能键宽度（Shift/Delete 占据字母键以外的剩余空间）
     private var functionalKeyWidth: CGFloat {
         let rows = isNumberMode ? numberRows : letterRows
         let letterCount = CGFloat(rows[2].count)
@@ -96,20 +130,24 @@ class KeyboardView: UIView {
 
     private func setupKeyboard() {
         backgroundColor = Self.keyboardBackgroundColor
+        clipsToBounds = false
+        keyPreview.isHidden = true
+        addSubview(keyPreview)
         buildKeys()
-    }
-
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
     }
 
     // MARK: - Build
 
     private func buildKeys() {
-        subviews.forEach { $0.removeFromSuperview() }
+        // 清除除预览外的所有子视图
+        subviews.forEach { v in
+            if v !== keyPreview { v.removeFromSuperview() }
+        }
         keyButtons.removeAll()
         modeToggleButton = nil
         deleteButton = nil
+        returnButton = nil
+        spaceButton = nil
 
         let rows = isNumberMode ? numberRows : letterRows
 
@@ -164,6 +202,7 @@ class KeyboardView: UIView {
                     modeToggleButton = leftKey
                     updateModeToggleAppearance()
                 }
+                leftKey.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
                 leftKey.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
                 wrapper.addArrangedSubview(leftKey)
 
@@ -195,7 +234,6 @@ class KeyboardView: UIView {
         bottom.distribution = .fill
         bottom.spacing = keySpacing
 
-        // 底部键宽度根据屏幕等比计算
         let bottomSmallWidth = letterKeyWidth * 1.2
         let returnWidth = letterKeyWidth * 2.6
 
@@ -204,6 +242,7 @@ class KeyboardView: UIView {
             globe.setImage(Self.symbolImage("globe", isIPad: isIPad), for: .normal)
             globe.tintColor = .label
             globe.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
+            globe.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
             globe.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
             bottom.addArrangedSubview(globe)
         }
@@ -212,24 +251,30 @@ class KeyboardView: UIView {
         modeBtn.setTitle(isNumberMode ? "ABC" : "123", for: .normal)
         modeBtn.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
         modeBtn.addTarget(self, action: #selector(modeSwitchTapped), for: .touchUpInside)
+        modeBtn.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
         modeBtn.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
         bottom.addArrangedSubview(modeBtn)
 
         let space = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
-        space.setTitle(isEnglishMode ? "space" : "空格", for: .normal)
-        space.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .regular)
+        space.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 16 : 15, weight: .regular)
+        space.setTitleColor(Self.spaceLabelColor, for: .normal)
         space.tagKey = " "
         space.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
-        // 空格键不设固定宽度，让它填满剩余空间
+        space.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
         space.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spaceButton = space
         bottom.addArrangedSubview(space)
+        updateSpaceLabel()
 
-        let returnBtn = KeyButton(style: .accent, cornerRadius: keyCornerRadius)
-        returnBtn.setTitle("换行", for: .normal)
-        returnBtn.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .medium)
+        let returnBtn = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
+        returnBtn.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .regular)
+        returnBtn.setTitle(returnTitle, for: .normal)
         returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
+        returnBtn.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
         returnBtn.widthAnchor.constraint(equalToConstant: returnWidth).isActive = true
+        returnButton = returnBtn
         bottom.addArrangedSubview(returnBtn)
+        updateReturnStyle()
 
         containerStack.addArrangedSubview(bottom)
 
@@ -239,6 +284,8 @@ class KeyboardView: UIView {
             containerStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -edgeInset),
             containerStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
         ])
+
+        bringSubviewToFront(keyPreview)
     }
 
     private func makeRowStack() -> UIStackView {
@@ -255,8 +302,12 @@ class KeyboardView: UIView {
             let button = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
             button.setTitle(key, for: .normal)
             button.titleLabel?.font = UIFont.systemFont(
-                ofSize: isIPad ? 24 : 23, weight: .light)
+                ofSize: isIPad ? 24 : 23, weight: .regular)
             button.tagKey = key.lowercased()
+            button.previewText = key
+            button.addTarget(self, action: #selector(letterTouchDown(_:)), for: .touchDown)
+            button.addTarget(self, action: #selector(letterTouchUp(_:)),
+                             for: [.touchUpInside, .touchUpOutside, .touchCancel])
             button.addTarget(self, action: #selector(keyTapped(_:)), for: .touchUpInside)
             stack.addArrangedSubview(button)
             keyButtons.append(button)
@@ -269,9 +320,15 @@ class KeyboardView: UIView {
         UIColor { traits in
             traits.userInterfaceStyle == .dark
                 ? UIColor(red: 0.16, green: 0.16, blue: 0.17, alpha: 1.0)
-                : UIColor(red: 0.82, green: 0.84, blue: 0.86, alpha: 1.0)
+                : UIColor(red: 0.82, green: 0.83, blue: 0.85, alpha: 1.0)
         }
     }()
+
+    private static let spaceLabelColor: UIColor = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+            ? UIColor.label.withAlphaComponent(0.75)
+            : UIColor.label.withAlphaComponent(0.55)
+    }
 
     private static func functionalFont(isIPad: Bool) -> UIFont {
         UIFont.systemFont(ofSize: isIPad ? 18 : 16, weight: .regular)
@@ -287,6 +344,22 @@ class KeyboardView: UIView {
         btn.setStyle(isEnglishMode ? .functionalActive : .functional)
     }
 
+    private func updateSpaceLabel() {
+        guard let btn = spaceButton else { return }
+        if isEnglishMode {
+            btn.setTitle("space", for: .normal)
+        } else if isNumberMode {
+            btn.setTitle("空格", for: .normal)
+        } else {
+            btn.setTitle("晗戈五笔", for: .normal)
+        }
+    }
+
+    private func updateReturnStyle() {
+        guard let btn = returnButton else { return }
+        btn.setStyle(returnStyle == .action ? .accent : .functional)
+    }
+
     // MARK: - Actions
 
     @objc private func keyTapped(_ sender: KeyButton) {
@@ -294,11 +367,25 @@ class KeyboardView: UIView {
         delegate?.keyboardView(self, didTapKey: key)
     }
 
+    @objc private func letterTouchDown(_ sender: KeyButton) {
+        fireHaptic()
+        showPreview(for: sender)
+    }
+
+    @objc private func letterTouchUp(_ sender: KeyButton) {
+        hidePreview()
+    }
+
+    @objc private func functionalTouchDown() {
+        fireHaptic()
+    }
+
     @objc private func shiftTapped() {
         delegate?.keyboardViewDidTapShift(self)
     }
 
     @objc private func deleteTouchDown() {
+        fireHaptic()
         deleteRepeatStarted = false
         delegate?.keyboardViewDidTapBackspace(self)
         deleteTimer?.invalidate()
@@ -334,6 +421,25 @@ class KeyboardView: UIView {
         isNumberMode.toggle()
         buildKeys()
     }
+
+    // MARK: - Preview / Haptic
+
+    private func showPreview(for key: KeyButton) {
+        guard let text = key.previewText else { return }
+        let frame = key.convert(key.bounds, to: self)
+        keyPreview.show(over: frame, character: text, isIPad: isIPad)
+        bringSubviewToFront(keyPreview)
+    }
+
+    private func hidePreview() {
+        keyPreview.hide()
+    }
+
+    private func fireHaptic() {
+        guard hapticEnabled, let gen = impactGen else { return }
+        gen.impactOccurred(intensity: 0.6)
+        gen.prepare()
+    }
 }
 
 // MARK: - KeyButton
@@ -348,6 +454,7 @@ final class KeyButton: UIButton {
     }
 
     var tagKey: String?
+    var previewText: String?
 
     private var style: Style = .letter
 
@@ -357,7 +464,7 @@ final class KeyButton: UIButton {
         layer.cornerCurve = .continuous
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOffset = CGSize(width: 0, height: 1)
-        layer.shadowOpacity = 0.18
+        layer.shadowOpacity = 0.35
         layer.shadowRadius = 0
         translatesAutoresizingMaskIntoConstraints = false
         adjustsImageWhenHighlighted = false
@@ -430,6 +537,6 @@ final class KeyButton: UIButton {
     static let functionalBg: UIColor = UIColor { traits in
         traits.userInterfaceStyle == .dark
             ? UIColor(red: 0.27, green: 0.27, blue: 0.28, alpha: 1.0)
-            : UIColor(red: 0.68, green: 0.71, blue: 0.74, alpha: 1.0)
+            : UIColor(red: 0.67, green: 0.70, blue: 0.74, alpha: 1.0)
     }
 }
