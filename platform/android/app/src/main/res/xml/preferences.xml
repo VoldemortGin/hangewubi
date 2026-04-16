@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory app:title="@string/settings_section_input">
+        <SwitchPreferenceCompat
+            app:key="pinyin_mixed_enabled"
+            app:title="@string/settings_pinyin_mixed_title"
+            app:summary="@string/settings_pinyin_mixed_summary"
+            app:defaultValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/settings_section_wubi">
+        <SwitchPreferenceCompat
+            app:key="auto_commit_unique_4"
+            app:title="@string/settings_auto_commit_unique_title"
+            app:summary="@string/settings_auto_commit_unique_summary"
+            app:defaultValue="true" />
+
+        <SwitchPreferenceCompat
+            app:key="auto_commit_first_5"
+            app:title="@string/settings_auto_commit_first_title"
+            app:summary="@string/settings_auto_commit_first_summary"
+            app:defaultValue="false" />
+
+        <ListPreference
+            app:key="candidate_count"
+            app:title="@string/settings_candidate_count_title"
+            app:summary="@string/settings_candidate_count_summary"
+            app:entries="@array/candidate_count_entries"
+            app:entryValues="@array/candidate_count_values"
+            app:defaultValue="5"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:key="enter_key_action"
+            app:title="@string/settings_enter_action_title"
+            app:entries="@array/enter_action_entries"
+            app:entryValues="@array/enter_action_values"
+            app:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            app:key="empty_code_action"
+            app:title="@string/settings_empty_action_title"
+            app:entries="@array/empty_action_entries"
+            app:entryValues="@array/empty_action_values"
+            app:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/settings_section_keyboard">
+        <SwitchPreferenceCompat
+            app:key="haptic_enabled"
+            app:title="@string/settings_haptic_title"
+            app:summary="@string/settings_haptic_summary"
+            app:defaultValue="true" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

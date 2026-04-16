@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 键盘深色模式 -->
+    <color name="keyboard_bg">#1F2024</color>
+    <color name="key_bg">#3A3D42</color>
+    <color name="key_bg_special">#24262B</color>
+    <color name="key_bg_pressed">#54575C</color>
+    <color name="key_shadow">#141516</color>
+    <color name="key_label">#F5F5F5</color>
+    <color name="key_sublabel">#BDBDBD</color>
+    <color name="candidate_bg">#1F2024</color>
+    <color name="candidate_highlight">#2C3A4C</color>
+    <color name="candidate_separator">#2E3035</color>
+    <color name="candidate_divider">#0D0E10</color>
+</resources>

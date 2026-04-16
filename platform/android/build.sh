@@ -52,6 +52,8 @@ declare -A ABI_MAP=(
 )
 
 # Determine which ABIs to build
+# 默认只构建 arm64-v8a + x86_64，与 app/build.gradle.kts 的 abiFilters 对齐。
+# armv7 几乎没有现代设备使用，按需显式 `--abi armv7` 单独构建。
 if [ -n "$SINGLE_ABI" ]; then
     case "$SINGLE_ABI" in
         arm64) ABIS=("arm64-v8a") ;;
@@ -60,7 +62,16 @@ if [ -n "$SINGLE_ABI" ]; then
         *) ABIS=("$SINGLE_ABI") ;;
     esac
 else
-    ABIS=("arm64-v8a" "armeabi-v7a" "x86_64")
+    ABIS=("arm64-v8a" "x86_64")
+fi
+
+# 前置依赖检查（先报错比 cargo ndk 失败的堆栈友好得多）
+if ! command -v cargo-ndk >/dev/null 2>&1; then
+    echo "ERROR: cargo-ndk 未安装。请运行: cargo install cargo-ndk" >&2
+    exit 1
+fi
+if [ -z "${ANDROID_NDK_HOME:-}${ANDROID_NDK_ROOT:-}${NDK_HOME:-}" ]; then
+    echo "WARN: ANDROID_NDK_HOME 未设置；若 cargo-ndk 找不到 NDK 会失败" >&2
 fi
 
 echo "=== Building hangewubi for Android ==="
