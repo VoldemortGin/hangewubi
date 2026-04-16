@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B765B9D0A6B7D82F95DFAA5 /* KeyPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7366338D8974EC483DAF59AA /* KeyPreviewView.swift */; };
 		174BDEB165D14E8002528188 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5825A1A6EB37810669AFC8 /* AppDelegate.swift */; };
 		2246BE9ACB45249093DDF3E1 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F70598EB50616C3675B5338 /* MainViewController.swift */; };
 		2B06FF9AACE2A2124E12EFF8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5DCA93B4954C565640574338 /* Assets.xcassets */; };
@@ -61,6 +62,7 @@
 		5C85D635716C6526B9C72E80 /* pinyin.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = pinyin.txt; sourceTree = "<group>"; };
 		5DCA93B4954C565640574338 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		62391628361A775D20AB4B73 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		7366338D8974EC483DAF59AA /* KeyPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyPreviewView.swift; sourceTree = "<group>"; };
 		A5A688DB653A30FBE1CC7241 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AF5825A1A6EB37810669AFC8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C51A7A2F75280378AAB22BE4 /* HangeWubi.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HangeWubi.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -116,6 +118,7 @@
 				62391628361A775D20AB4B73 /* Info.plist */,
 				FE39627AEB85BF8F4933BA26 /* KeyboardView.swift */,
 				0E5F52EE59DC2D3FB5B9D291 /* KeyboardViewController.swift */,
+				7366338D8974EC483DAF59AA /* KeyPreviewView.swift */,
 				A5A688DB653A30FBE1CC7241 /* PrivacyInfo.xcprivacy */,
 			);
 			path = HangeWubiKeyboard;
@@ -239,6 +242,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3E6E3E54B059DC92B647B043 /* CandidateBarView.swift in Sources */,
+				0B765B9D0A6B7D82F95DFAA5 /* KeyPreviewView.swift in Sources */,
 				4AFE072698D56EEEB9396CAB /* KeyboardView.swift in Sources */,
 				9E73AB56C212EC49B53DC834 /* KeyboardViewController.swift in Sources */,
 			);
