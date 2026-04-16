@@ -56,6 +56,7 @@ class KeyboardView: UIView {
     }
 
     private(set) var isNumberMode = false
+    private(set) var isSymbolMode = false
 
     var returnTitle: String = "换行" {
         didSet { returnButton?.setTitle(returnTitle, for: .normal) }
@@ -89,6 +90,12 @@ class KeyboardView: UIView {
         [".", ",", "?", "!", "'"],
     ]
 
+    private let symbolRows: [[String]] = [
+        ["[", "]", "{", "}", "#", "%", "^", "*", "+", "="],
+        ["_", "\\", "|", "~", "<", ">", "€", "$", "£", "·"],
+        [".", ",", "?", "!", "'"],
+    ]
+
     // MARK: - 等比计算的布局参数
 
     private var keySpacing: CGFloat { isIPad ? 8 : 6 }
@@ -109,8 +116,14 @@ class KeyboardView: UIView {
         (letterKeyWidth + keySpacing) / 2
     }
 
+    private var currentRows: [[String]] {
+        if isSymbolMode { return symbolRows }
+        if isNumberMode { return numberRows }
+        return letterRows
+    }
+
     private var functionalKeyWidth: CGFloat {
-        let rows = isNumberMode ? numberRows : letterRows
+        let rows = currentRows
         let letterCount = CGFloat(rows[2].count)
         let lettersWidth = letterCount * letterKeyWidth + (letterCount - 1) * keySpacing
         return (availableWidth - lettersWidth - 2 * keySpacing) / 2
@@ -149,7 +162,7 @@ class KeyboardView: UIView {
         returnButton = nil
         spaceButton = nil
 
-        let rows = isNumberMode ? numberRows : letterRows
+        let rows = currentRows
 
         let containerStack = UIStackView()
         containerStack.axis = .vertical
@@ -189,18 +202,18 @@ class KeyboardView: UIView {
                 wrapper.spacing = keySpacing
 
                 let leftKey: KeyButton
-                if isNumberMode {
+                if isNumberMode || isSymbolMode {
                     leftKey = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-                    leftKey.setTitle("#+=", for: .normal)
+                    leftKey.setTitle(isSymbolMode ? "123" : "#+=", for: .normal)
                     leftKey.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
-                    leftKey.addTarget(self, action: #selector(modeSwitchTapped), for: .touchUpInside)
+                    leftKey.addTarget(self, action: #selector(symbolToggleTapped), for: .touchUpInside)
                 } else {
                     leftKey = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-                    leftKey.setTitle("中/英", for: .normal)
                     leftKey.titleLabel?.font = Self.functionalFont(isIPad: isIPad).withSize(isIPad ? 16 : 14)
                     leftKey.addTarget(self, action: #selector(shiftTapped), for: .touchUpInside)
                     modeToggleButton = leftKey
                     updateModeToggleAppearance()
+                    updateModeToggleLabel()
                 }
                 leftKey.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
                 leftKey.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
@@ -248,7 +261,7 @@ class KeyboardView: UIView {
         }
 
         let modeBtn = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-        modeBtn.setTitle(isNumberMode ? "ABC" : "123", for: .normal)
+        modeBtn.setTitle((isNumberMode || isSymbolMode) ? "ABC" : "123", for: .normal)
         modeBtn.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
         modeBtn.addTarget(self, action: #selector(modeSwitchTapped), for: .touchUpInside)
         modeBtn.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
@@ -342,13 +355,19 @@ class KeyboardView: UIView {
     private func updateModeToggleAppearance() {
         guard let btn = modeToggleButton else { return }
         btn.setStyle(isEnglishMode ? .functionalActive : .functional)
+        updateModeToggleLabel()
+    }
+
+    private func updateModeToggleLabel() {
+        guard let btn = modeToggleButton else { return }
+        btn.setTitle(isEnglishMode ? "英" : "中", for: .normal)
     }
 
     private func updateSpaceLabel() {
         guard let btn = spaceButton else { return }
         if isEnglishMode {
             btn.setTitle("space", for: .normal)
-        } else if isNumberMode {
+        } else if isNumberMode || isSymbolMode {
             btn.setTitle("空格", for: .normal)
         } else {
             btn.setTitle("晗戈五笔", for: .normal)
@@ -419,6 +438,19 @@ class KeyboardView: UIView {
 
     @objc private func modeSwitchTapped() {
         isNumberMode.toggle()
+        isSymbolMode = false
+        buildKeys()
+    }
+
+    @objc private func symbolToggleTapped() {
+        isSymbolMode.toggle()
+        // When toggling symbol, we stay in the number/symbol area
+        // isNumberMode stays true when switching to symbols, and when switching back
+        if isSymbolMode {
+            isNumberMode = false
+        } else {
+            isNumberMode = true
+        }
         buildKeys()
     }
 
