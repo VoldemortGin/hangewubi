@@ -220,6 +220,7 @@ class KeyboardViewController: UIInputViewController {
             if let text = result.text {
                 ffi_free_string(text)
             }
+            textDocumentProxy.unmarkText()
             candidateBar.clear()
 
         case FFI_ACTION_UNHANDLED:
@@ -254,9 +255,17 @@ class KeyboardViewController: UIInputViewController {
         }
         ffi_free_candidate_list(list)
 
-        candidateBar.updatePreedit(buffer)
+        // Show composing text inline at the cursor via marked text
+        if !buffer.isEmpty {
+            textDocumentProxy.setMarkedText(buffer.uppercased(), selectedRange: NSRange(location: buffer.count, length: 0))
+        } else {
+            textDocumentProxy.unmarkText()
+        }
+
+        // Preedit is now shown inline; keep the label empty
+        candidateBar.updatePreedit("")
         candidateBar.updateCandidates(candidates)
-        candidateBar.isHidden = buffer.isEmpty && candidates.isEmpty
+        candidateBar.isHidden = candidates.isEmpty
     }
 
     /// 满 4 码自动上屏：模仿 iOS 系统五笔行为。
@@ -391,6 +400,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
             let mode = ffi_get_mode()
             isChinese = (mode == 0)
             keyboardView.isEnglishMode = !isChinese
+            textDocumentProxy.unmarkText()
             candidateBar.clear()
         }
     }
