@@ -44,25 +44,27 @@ if [ "$BUILD_TYPE" = "release" ]; then
     CARGO_FLAGS="--release"
 fi
 
-# Map of ABI -> Rust target
-declare -A ABI_MAP=(
-    ["arm64-v8a"]="aarch64-linux-android"
-    ["armeabi-v7a"]="armv7-linux-androideabi"
-    ["x86_64"]="x86_64-linux-android"
-)
+# ABI -> Rust target 映射（用函数代替 declare -A，兼容 macOS bash 3.2）
+abi_to_target() {
+    case "$1" in
+        arm64-v8a)    echo "aarch64-linux-android" ;;
+        armeabi-v7a)  echo "armv7-linux-androideabi" ;;
+        x86_64)       echo "x86_64-linux-android" ;;
+        *) echo "UNKNOWN"; return 1 ;;
+    esac
+}
 
 # Determine which ABIs to build
 # 默认只构建 arm64-v8a + x86_64，与 app/build.gradle.kts 的 abiFilters 对齐。
-# armv7 几乎没有现代设备使用，按需显式 `--abi armv7` 单独构建。
 if [ -n "$SINGLE_ABI" ]; then
     case "$SINGLE_ABI" in
-        arm64) ABIS=("arm64-v8a") ;;
-        arm32|armv7) ABIS=("armeabi-v7a") ;;
-        x86_64|x64) ABIS=("x86_64") ;;
-        *) ABIS=("$SINGLE_ABI") ;;
+        arm64) ABIS="arm64-v8a" ;;
+        arm32|armv7) ABIS="armeabi-v7a" ;;
+        x86_64|x64) ABIS="x86_64" ;;
+        *) ABIS="$SINGLE_ABI" ;;
     esac
 else
-    ABIS=("arm64-v8a" "x86_64")
+    ABIS="arm64-v8a x86_64"
 fi
 
 # 前置依赖检查（先报错比 cargo ndk 失败的堆栈友好得多）
@@ -76,7 +78,7 @@ fi
 
 echo "=== Building hangewubi for Android ==="
 echo "Build type: $BUILD_TYPE"
-echo "ABIs: ${ABIS[*]}"
+echo "ABIs: $ABIS"
 
 # Step 1: Copy data files to assets
 echo ""
@@ -97,8 +99,8 @@ cd "$PROJECT_ROOT"
 # Set minimum API level
 export ANDROID_NDK_MIN_API=24
 
-for abi in "${ABIS[@]}"; do
-    target="${ABI_MAP[$abi]}"
+for abi in $ABIS; do
+    target=$(abi_to_target "$abi")
     echo ""
     echo "Building for $abi ($target)..."
 
