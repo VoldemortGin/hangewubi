@@ -112,20 +112,24 @@ class HangeWubiIME : InputMethodService() {
     }
 
     override fun onCreateInputView(): View {
-        val view = KeyboardView(this)
-        view.setIME(this)
-        kbView = view
-        // 首次创建时应用一次配置
-        applyConfig()
-        return view
-    }
+        // 把候选栏和键盘组合到同一个容器里，不依赖系统的 setCandidatesViewShown
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+        }
 
-    override fun onCreateCandidatesView(): View {
-        val view = CandidateView(this)
-        view.setIME(this)
-        candView = view
-        setCandidatesViewShown(false)
-        return view
+        val cand = CandidateView(this)
+        cand.setIME(this)
+        cand.visibility = android.view.View.GONE
+        candView = cand
+        container.addView(cand)
+
+        val kb = KeyboardView(this)
+        kb.setIME(this)
+        kbView = kb
+        container.addView(kb)
+
+        applyConfig()
+        return container
     }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
@@ -143,7 +147,7 @@ class HangeWubiIME : InputMethodService() {
         if (engineReady) {
             engine.nativeHandleEscape()
         }
-        setCandidatesViewShown(false)
+        showCandidates(false)
     }
 
     fun onKeyPress(keyCode: Int) {
@@ -241,6 +245,10 @@ class HangeWubiIME : InputMethodService() {
         }
     }
 
+    private fun showCandidates(show: Boolean) {
+        candView?.visibility = if (show) android.view.View.VISIBLE else android.view.View.GONE
+    }
+
     private fun updateUI() {
         val ic = currentInputConnection ?: return
         val buffer = engine.nativeGetBuffer()
@@ -248,10 +256,10 @@ class HangeWubiIME : InputMethodService() {
 
         if (buffer.isEmpty() && candidates.isEmpty()) {
             ic.finishComposingText()
-            setCandidatesViewShown(false)
+            showCandidates(false)
         } else {
             ic.setComposingText(buffer, 1)
-            setCandidatesViewShown(candidates.isNotEmpty())
+            showCandidates(candidates.isNotEmpty())
         }
 
         candView?.update(buffer, candidates)
