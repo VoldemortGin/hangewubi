@@ -332,9 +332,7 @@ class KeyboardView @JvmOverloads constructor(
 
     private fun performHaptic() {
         if (!hapticEnabled) return
-        performHapticFeedback(
-            HapticFeedbackConstants.KEYBOARD_TAP,
-            HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-        )
+        @Suppress("DEPRECATION")
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
     }
 }
