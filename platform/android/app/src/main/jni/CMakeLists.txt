@@ -10,6 +10,7 @@ set(HANGEWUBI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../../../../include"
 add_library(hangewubi SHARED IMPORTED)
 set_target_properties(hangewubi PROPERTIES
     IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libhangewubi.so"
+    IMPORTED_NO_SONAME TRUE
 )
 
 # Build the JNI bridge
