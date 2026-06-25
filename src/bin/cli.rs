@@ -79,12 +79,7 @@ fn main() {
             print!("  ");
             for (i, candidate) in engine.candidates().iter().enumerate() {
                 let marker = if candidate.is_user { "*" } else { "" };
-                print!(
-                    "\x1b[33m{}\x1b[0m.{}{} ",
-                    i + 1,
-                    candidate.text,
-                    marker
-                );
+                print!("\x1b[33m{}\x1b[0m.{}{} ", i + 1, candidate.text, marker);
             }
         }
 
@@ -258,20 +253,18 @@ fn read_key() -> Key {
     }
 
     match buf[0] {
-        3 => Key::CtrlC,        // Ctrl+C
-        9 => Key::Tab,          // Tab
-        13 => Key::Enter,       // Enter
-        27 => Key::Escape,      // Escape
-        32 => Key::Space,       // Space
-        127 => Key::Backspace,  // Backspace (macOS)
-        8 => Key::Backspace,    // Backspace (Linux)
+        3 => Key::CtrlC,       // Ctrl+C
+        9 => Key::Tab,         // Tab
+        13 => Key::Enter,      // Enter
+        27 => Key::Escape,     // Escape
+        32 => Key::Space,      // Space
+        127 => Key::Backspace, // Backspace (macOS)
+        8 => Key::Backspace,   // Backspace (Linux)
         b'0'..=b'9' => Key::Number((buf[0] - b'0') as usize),
         b'a'..=b'z' => Key::Char(buf[0] as char),
         b'A'..=b'Z' => Key::Char(buf[0] as char), // 保留原大写
         b';' => Key::Semicolon,
-        ch if PunctuationConverter::is_punctuation(ch as char) => {
-            Key::Punctuation(ch as char)
-        }
+        ch if PunctuationConverter::is_punctuation(ch as char) => Key::Punctuation(ch as char),
         _ => Key::Unknown,
     }
 }

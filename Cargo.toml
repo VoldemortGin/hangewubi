@@ -20,3 +20,9 @@ tempfile = "3"
 [[bin]]
 name = "hangewubi-cli"
 path = "src/bin/cli.rs"
+
+[build-dependencies]
+cbindgen = "=0.29.4"
+
+[profile.release]
+panic = "abort"
