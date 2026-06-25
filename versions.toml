@@ -1,0 +1,75 @@
+# 晗戈五笔 · 工具链 + 生成器矩阵（铁律 7：钉死跨语言工具链）
+#
+# 单一事实来源（single source of truth）：本机门禁（Makefile / scripts）与 CI
+# 均以此文件声明的版本为准。改动跨语言契约相关工具时，先改这里，再同步
+# rust-toolchain.toml / .github/workflows/ci.yml / 各宿主 build.sh。
+#
+# 字段含义：
+#   pinned = true  → 版本必须精确一致（影响生成产物 / 契约的工具，禁止漂移）
+#   pinned = false → 记录当前/最低要求，可向上兼容
+
+# ==================== 核心：Rust 工具链 ====================
+[core]
+# 与 rust-toolchain.toml 的 channel 必须一致。
+rust = "1.94.1"
+edition = "2024"
+# release profile 已设 panic = "abort"（见 Cargo.toml），保证 panic 不跨 FFI 边界。
+components = ["clippy", "rustfmt"]
+pinned = true
+
+# ==================== 生成器：契约绑定代码 ====================
+# 这些工具把"唯一声明的契约"（src/ffi.rs）派生成各宿主消费的产物。
+# 必须钉死：生成器版本变动会改变 include/hangewubi.h，触发契约漂移。
+[generators]
+# cbindgen 由 build.rs 在每次 cargo build 时调用，从 src/ffi.rs 生成
+# include/hangewubi.h（写时比对落盘）。漂移守卫见 scripts/check_bindings.sh。
+cbindgen = "0.29.4"
+pinned = true
+
+# ==================== 宿主工具链矩阵 ====================
+# 5 个宿主各自的最低工具链要求。能在本机查到的写实际版本，查不到的指向
+# 对应 platform/<host>/build.sh 作为权威说明。
+
+[hosts.macos]
+# 输入法 .app（InputMethodKit）。本机：Xcode 26.5 / Swift 6.3.2。
+xcode = "26.5"
+swift = "6.3.2"
+rust_target = "aarch64-apple-darwin"
+build = "platform/macos/build.sh"   # dev=ad-hoc 签名（非交互）；release/dist=Developer ID + 公证
+pinned = false
+
+[hosts.ios]
+# 键盘扩展（App Store）。依赖 xcodegen 生成 Xcode 工程。
+xcode = "26.5"
+swift = "6.3.2"
+rust_target = "aarch64-apple-ios"           # 真机
+rust_target_sim = "aarch64-apple-ios-sim"   # 模拟器
+build = "platform/ios/build.sh"             # 需 xcodegen；dist 需签名凭据
+pinned = false
+
+[hosts.android]
+# IME（Gradle）。Rust .so 经 cargo-ndk 交叉编译后塞进 jniLibs。
+gradle = "8.9"
+android_gradle_plugin = "8.7.3"
+kotlin = "2.1.0"
+compile_sdk = 35
+min_sdk = 24
+target_sdk = 35
+ndk = "见 platform/android/build.sh"   # 需 ANDROID_NDK_HOME + cargo-ndk（cargo install cargo-ndk）
+rust_targets = ["aarch64-linux-android", "armv7-linux-androideabi", "x86_64-linux-android"]
+build = "platform/android/build.sh"
+pinned = false
+
+[hosts.linux]
+# IBus 引擎（C）。需 gcc + pkg-config + libibus-1.0-dev。
+toolchain = "见 platform/linux/build.sh"   # gcc / pkg-config / ibus-1.0
+rust_target = "x86_64-unknown-linux-gnu"
+build = "platform/linux/build.sh"
+pinned = false
+
+[hosts.windows]
+# TSF 文本服务（C++，MSVC cl.exe）。
+toolchain = "MSVC (cl.exe) + Windows SDK / TSF —— 见 platform/windows/build.bat"
+rust_target = "x86_64-pc-windows-msvc"
+build = "platform/windows/build.bat"
+pinned = false

@@ -15,8 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      # 钉死到 rust-toolchain.toml / versions.toml 声明的 1.94.1（铁律 7）。
+      - name: Install Rust 1.94.1
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.94.1
 
       - name: Cache cargo
         uses: actions/cache@v4
@@ -33,18 +36,34 @@ jobs:
       - name: Build release
         run: cargo build --release
 
+  # 契约漂移守卫（铁律 6）：重新生成 include/hangewubi.h 并比对已提交版本。
+  bindings-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust 1.94.1
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.94.1
+
+      - name: Check binding freshness
+        run: bash scripts/check_bindings.sh
+
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.94.1
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.94.1
           components: clippy, rustfmt
 
       - name: Check format
         run: cargo fmt --check
 
+      # 与本地门禁（make check / make core）完全一致。
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings

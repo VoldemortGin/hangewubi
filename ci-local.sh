@@ -1,27 +1,14 @@
 #!/bin/bash
-set -e
+# 本地 CI 薄包装：唯一裁判是 `make check`，本脚本只是它的入口，避免两套真相。
+set -euo pipefail
 
-echo "=== 晗戈五笔 本地 CI ==="
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT_DIR"
 
+echo "=== 晗戈五笔 本地 CI（= make check）==="
 echo ""
-echo "[1/3] 运行全部测试..."
-cargo test
 
-echo ""
-echo "[2/3] macOS Release 构建..."
-cargo build --release
-echo "  => target/release/libhangewubi.dylib"
-echo "  => target/release/hangewubi-cli"
-
-echo ""
-echo "[3/3] Linux 交叉编译..."
-if rustup target list --installed 2>/dev/null | grep -q "x86_64-unknown-linux-gnu"; then
-    cargo build --release --target x86_64-unknown-linux-gnu
-    echo "  => target/x86_64-unknown-linux-gnu/release/libhangewubi.so"
-else
-    echo "  跳过：未安装 x86_64-unknown-linux-gnu target"
-    echo "  安装命令: rustup target add x86_64-unknown-linux-gnu"
-fi
+make check
 
 echo ""
 echo "=== 本地 CI 完成 ==="
