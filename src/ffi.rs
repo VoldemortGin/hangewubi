@@ -1,6 +1,11 @@
 //! C FFI 导出层
 //! 为所有平台（macOS/iOS/Android/Windows/Linux）提供统一的 C 接口
 
+// 这些 FFI 函数已在各自的 `///` 文档里说明指针参数契约。不写 `# Safety`
+// 文档段是刻意的：cbindgen 开启了 documentation=true，会把 `# Safety` 段原样
+// 拷进自动生成的 include/hangewubi.h，污染 C 契约头。
+#![allow(clippy::missing_safety_doc)]
+
 use crate::config::Config;
 use crate::dict::DictEngine;
 use crate::engine::{EngineAction, InputEngine, InputMode};
@@ -48,13 +53,37 @@ pub struct FfiCandidateList {
 
 static ENGINE: Mutex<Option<InputEngine>> = Mutex::new(None);
 
-fn with_engine<F, R>(f: F) -> R
+impl FfiResult {
+    /// 未处理结果（用于引擎未初始化等降级场景）
+    fn unhandled() -> Self {
+        FfiResult {
+            action: FfiAction::Unhandled,
+            text: std::ptr::null_mut(),
+        }
+    }
+}
+
+impl FfiCandidateList {
+    /// 空候选列表（用于引擎未初始化等降级场景）
+    fn empty() -> Self {
+        FfiCandidateList {
+            candidates: std::ptr::null_mut(),
+            count: 0,
+        }
+    }
+}
+
+/// 在已初始化的引擎上执行闭包：锁中毒时从毒化状态恢复，
+/// 引擎未初始化时返回 `default`，确保 FFI 边界永不 panic。
+fn with_engine<F, R>(default: R, f: F) -> R
 where
     F: FnOnce(&mut InputEngine) -> R,
 {
-    let mut guard = ENGINE.lock().unwrap();
-    let engine = guard.as_mut().expect("引擎未初始化，请先调用 ffi_init");
-    f(engine)
+    let mut guard = ENGINE.lock().unwrap_or_else(|p| p.into_inner());
+    match guard.as_mut() {
+        Some(engine) => f(engine),
+        None => default,
+    }
 }
 
 fn action_to_ffi(action: EngineAction) -> FfiResult {
@@ -85,8 +114,8 @@ fn action_to_ffi(action: EngineAction) -> FfiResult {
 /// dict_path: 码表文件路径（UTF-8 C 字符串）
 /// 返回加载的词条数，失败返回 -1
 #[unsafe(no_mangle)]
-pub extern "C" fn ffi_init(dict_path: *const c_char) -> i64 {
-    ffi_init_with_pinyin(dict_path, std::ptr::null())
+pub unsafe extern "C" fn ffi_init(dict_path: *const c_char) -> i64 {
+    unsafe { ffi_init_with_pinyin(dict_path, std::ptr::null()) }
 }
 
 /// 初始化引擎（支持拼音混输）
@@ -94,7 +123,7 @@ pub extern "C" fn ffi_init(dict_path: *const c_char) -> i64 {
 /// pinyin_dict_path: 拼音词典路径（可为 null）
 /// 返回加载的词条数，失败返回 -1
 #[unsafe(no_mangle)]
-pub extern "C" fn ffi_init_with_pinyin(
+pub unsafe extern "C" fn ffi_init_with_pinyin(
     dict_path: *const c_char,
     pinyin_dict_path: *const c_char,
 ) -> i64 {
@@ -126,7 +155,7 @@ pub extern "C" fn ffi_init_with_pinyin(
         }
     }
 
-    *ENGINE.lock().unwrap() = Some(new_engine);
+    *ENGINE.lock().unwrap_or_else(|p| p.into_inner()) = Some(new_engine);
 
     count as i64
 }
@@ -135,7 +164,7 @@ pub extern "C" fn ffi_init_with_pinyin(
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_key(key: c_char) -> FfiResult {
     let ch = key as u8 as char;
-    with_engine(|e| {
+    with_engine(FfiResult::unhandled(), |e| {
         if ch.is_ascii_uppercase() {
             action_to_ffi(e.handle_uppercase(ch))
         } else {
@@ -147,7 +176,7 @@ pub extern "C" fn ffi_handle_key(key: c_char) -> FfiResult {
 /// 处理空格键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_space() -> FfiResult {
-    with_engine(|e| {
+    with_engine(FfiResult::unhandled(), |e| {
         if let Some(action) = e.handle_space_for_temp_english() {
             action_to_ffi(action)
         } else {
@@ -159,68 +188,76 @@ pub extern "C" fn ffi_handle_space() -> FfiResult {
 /// 处理数字键 (1-9)
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_number(num: u8) -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_number(num as usize)))
+    with_engine(FfiResult::unhandled(), |e| {
+        action_to_ffi(e.handle_number(num as usize))
+    })
 }
 
 /// 处理退格键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_backspace() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_backspace()))
+    with_engine(FfiResult::unhandled(), |e| {
+        action_to_ffi(e.handle_backspace())
+    })
 }
 
 /// 处理 Escape 键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_escape() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_escape()))
+    with_engine(FfiResult::unhandled(), |e| action_to_ffi(e.handle_escape()))
 }
 
 /// 处理 Enter 键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_enter() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_enter()))
+    with_engine(FfiResult::unhandled(), |e| action_to_ffi(e.handle_enter()))
 }
 
 /// 处理标点符号
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_punctuation(ch: c_char) -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_punctuation(ch as u8 as char)))
+    with_engine(FfiResult::unhandled(), |e| {
+        action_to_ffi(e.handle_punctuation(ch as u8 as char))
+    })
 }
 
 /// 处理分号键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_semicolon() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_semicolon()))
+    with_engine(FfiResult::unhandled(), |e| {
+        action_to_ffi(e.handle_semicolon())
+    })
 }
 
 /// 处理单引号键（选第三候选）
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_quote() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.handle_quote()))
+    with_engine(FfiResult::unhandled(), |e| action_to_ffi(e.handle_quote()))
 }
 
 /// 下一页
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_next_page() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.next_page()))
+    with_engine(FfiResult::unhandled(), |e| action_to_ffi(e.next_page()))
 }
 
 /// 上一页
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_prev_page() -> FfiResult {
-    with_engine(|e| action_to_ffi(e.prev_page()))
+    with_engine(FfiResult::unhandled(), |e| action_to_ffi(e.prev_page()))
 }
 
 /// 切换中英文模式
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_toggle_mode() {
-    with_engine(|e| e.toggle_mode());
+    with_engine((), |e| e.toggle_mode());
 }
 
 /// 获取当前输入模式
 /// 0=中文, 1=英文, 2=临时英文
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_get_mode() -> u8 {
-    with_engine(|e| match e.mode() {
+    with_engine(0u8, |e| match e.mode() {
         InputMode::Chinese => 0,
         InputMode::English => 1,
         InputMode::TempEnglish => 2,
@@ -231,7 +268,7 @@ pub extern "C" fn ffi_get_mode() -> u8 {
 /// 返回的字符串需要调用 ffi_free_string 释放
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_get_buffer() -> *mut c_char {
-    with_engine(|e| {
+    with_engine(std::ptr::null_mut(), |e| {
         let buffer = e.buffer();
         CString::new(buffer).unwrap_or_default().into_raw()
     })
@@ -241,7 +278,7 @@ pub extern "C" fn ffi_get_buffer() -> *mut c_char {
 /// 返回的列表需要调用 ffi_free_candidate_list 释放
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_get_candidates() -> FfiCandidateList {
-    with_engine(|e| {
+    with_engine(FfiCandidateList::empty(), |e| {
         let candidates = e.candidates();
         let count = candidates.len();
 
@@ -273,7 +310,7 @@ pub extern "C" fn ffi_get_candidates() -> FfiCandidateList {
 
 /// 释放 FFI 返回的字符串
 #[unsafe(no_mangle)]
-pub extern "C" fn ffi_free_string(s: *mut c_char) {
+pub unsafe extern "C" fn ffi_free_string(s: *mut c_char) {
     if !s.is_null() {
         unsafe {
             drop(CString::from_raw(s));
@@ -310,7 +347,7 @@ pub extern "C" fn ffi_set_config(
     candidate_count: u8,
     pinyin_mixed_enabled: bool,
 ) {
-    with_engine(|e| {
+    with_engine((), |e| {
         e.set_config(
             auto_commit_unique_4,
             auto_commit_first_5,
@@ -324,21 +361,27 @@ pub extern "C" fn ffi_set_config(
 
 /// 添加用户词条
 #[unsafe(no_mangle)]
-pub extern "C" fn ffi_add_user_word(code: *const c_char, text: *const c_char) {
+pub unsafe extern "C" fn ffi_add_user_word(code: *const c_char, text: *const c_char) {
     if code.is_null() || text.is_null() {
         return;
     }
-    let code = unsafe { CStr::from_ptr(code) }.to_string_lossy().into_owned();
-    let text = unsafe { CStr::from_ptr(text) }.to_string_lossy().into_owned();
-    with_engine(|e| e.add_user_word(code, text));
+    let code = unsafe { CStr::from_ptr(code) }
+        .to_string_lossy()
+        .into_owned();
+    let text = unsafe { CStr::from_ptr(text) }
+        .to_string_lossy()
+        .into_owned();
+    with_engine((), |e| e.add_user_word(code, text));
 }
 
 /// 保存用户词典
 #[unsafe(no_mangle)]
-pub extern "C" fn ffi_save_user_dict(path: *const c_char) -> bool {
+pub unsafe extern "C" fn ffi_save_user_dict(path: *const c_char) -> bool {
     if path.is_null() {
         return false;
     }
     let path = unsafe { CStr::from_ptr(path) }.to_string_lossy();
-    with_engine(|e| e.user_dict().save(&PathBuf::from(path.as_ref())).is_ok())
+    with_engine(false, |e| {
+        e.user_dict().save(&PathBuf::from(path.as_ref())).is_ok()
+    })
 }

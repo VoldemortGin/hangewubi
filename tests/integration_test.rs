@@ -19,7 +19,11 @@ fn test_load_real_dict() {
     let dict = load_real_dict();
     if let Some(dict) = dict {
         // 应该有大量词条
-        assert!(dict.entry_count() > 80000, "码表应有8万+词条，实际 {}", dict.entry_count());
+        assert!(
+            dict.entry_count() > 80000,
+            "码表应有8万+词条，实际 {}",
+            dict.entry_count()
+        );
         println!("加载了 {} 条词条", dict.entry_count());
     } else {
         println!("跳过：未找到码表文件 data/wubi86.txt");
@@ -35,11 +39,30 @@ fn test_one_key_simple_codes() {
 
     // 一级简码测试：每个字母键对应一个最常用字
     let expected = [
-        ("g", "一"), ("f", "地"), ("d", "在"), ("s", "要"), ("a", "工"),
-        ("h", "上"), ("j", "是"), ("k", "中"), ("l", "国"),
-        ("t", "和"), ("r", "的"), ("e", "有"), ("w", "人"), ("q", "我"),
-        ("y", "主"), ("u", "产"), ("i", "不"), ("o", "为"), ("p", "这"),
-        ("n", "民"), ("b", "了"), ("v", "发"), ("c", "以"), ("x", "经"),
+        ("g", "一"),
+        ("f", "地"),
+        ("d", "在"),
+        ("s", "要"),
+        ("a", "工"),
+        ("h", "上"),
+        ("j", "是"),
+        ("k", "中"),
+        ("l", "国"),
+        ("t", "和"),
+        ("r", "的"),
+        ("e", "有"),
+        ("w", "人"),
+        ("q", "我"),
+        ("y", "主"),
+        ("u", "产"),
+        ("i", "不"),
+        ("o", "为"),
+        ("p", "这"),
+        ("n", "民"),
+        ("b", "了"),
+        ("v", "发"),
+        ("c", "以"),
+        ("x", "经"),
     ];
 
     for (code, expected_char) in &expected {
@@ -62,11 +85,7 @@ fn test_common_words() {
     };
 
     // 测试常见词组
-    let test_cases = [
-        ("wqvb", "你好"),
-        ("imde", "没有"),
-        ("ytsm", "计算机"),
-    ];
+    let test_cases = [("wqvb", "你好"), ("imde", "没有"), ("ytsm", "计算机")];
 
     for (code, expected) in &test_cases {
         let results = dict.lookup_exact(code);
@@ -117,7 +136,13 @@ fn test_prefix_matching_with_real_dict() {
     // 输入 "wq" 应有多个候选
     let results = dict.lookup("wq", false, 10);
     assert!(!results.is_empty(), "前缀 'wq' 应有候选");
-    println!("wq 的候选: {:?}", results.iter().map(|e| format!("{}({})", e.text, e.code)).collect::<Vec<_>>());
+    println!(
+        "wq 的候选: {:?}",
+        results
+            .iter()
+            .map(|e| format!("{}({})", e.text, e.code))
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]

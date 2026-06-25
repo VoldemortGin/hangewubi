@@ -468,17 +468,23 @@ impl InputEngine {
         }
 
         // 再查主码表（五笔）
-        let dict_entries = self.dict.lookup(
-            &self.buffer,
-            self.config.wildcard_z_enabled,
-            max_candidates,
-        );
+        let dict_entries =
+            self.dict
+                .lookup(&self.buffer, self.config.wildcard_z_enabled, max_candidates);
         let buffer_len = self.buffer.len();
         for entry in dict_entries {
             // 避免与用户词典重复
-            if !self.candidates.iter().any(|c| c.text == entry.text && c.code == entry.code) {
+            if !self
+                .candidates
+                .iter()
+                .any(|c| c.text == entry.text && c.code == entry.code)
+            {
                 // 精确匹配（编码长度 == 输入长度）获得权重加成
-                let weight_boost = if entry.code.len() == buffer_len { 5000 } else { 0 };
+                let weight_boost = if entry.code.len() == buffer_len {
+                    5000
+                } else {
+                    0
+                };
                 self.candidates.push(Candidate {
                     code: entry.code.clone(),
                     text: entry.text.clone(),
@@ -489,25 +495,29 @@ impl InputEngine {
         }
 
         // 查拼音词典（如果启用混输）
-        if self.config.pinyin_mixed_enabled {
-            if let Some(ref pinyin_dict) = self.pinyin_dict {
-                let pinyin_entries = pinyin_dict.lookup(
-                    &self.buffer,
-                    false, // 拼音不使用万能键
-                    max_candidates,
-                );
-                for entry in pinyin_entries {
-                    // 避免与已有候选重复（按汉字去重）
-                    if !self.candidates.iter().any(|c| c.text == entry.text) {
-                        // 拼音精确匹配加成低于五笔，前缀匹配不加成
-                        let weight_boost = if entry.code.len() == buffer_len { 1000 } else { 0 };
-                        self.candidates.push(Candidate {
-                            code: entry.code.clone(),
-                            text: entry.text.clone(),
-                            weight: entry.weight + weight_boost,
-                            is_user: false,
-                        });
-                    }
+        if self.config.pinyin_mixed_enabled
+            && let Some(ref pinyin_dict) = self.pinyin_dict
+        {
+            let pinyin_entries = pinyin_dict.lookup(
+                &self.buffer,
+                false, // 拼音不使用万能键
+                max_candidates,
+            );
+            for entry in pinyin_entries {
+                // 避免与已有候选重复（按汉字去重）
+                if !self.candidates.iter().any(|c| c.text == entry.text) {
+                    // 拼音精确匹配加成低于五笔，前缀匹配不加成
+                    let weight_boost = if entry.code.len() == buffer_len {
+                        1000
+                    } else {
+                        0
+                    };
+                    self.candidates.push(Candidate {
+                        code: entry.code.clone(),
+                        text: entry.text.clone(),
+                        weight: entry.weight + weight_boost,
+                        is_user: false,
+                    });
                 }
             }
         }

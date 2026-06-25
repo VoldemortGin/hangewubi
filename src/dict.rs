@@ -106,7 +106,12 @@ impl DictEngine {
     /// 查询候选词（综合方法）
     /// 如果 pattern 含 z 且启用万能键，用通配符匹配
     /// 否则先精确匹配，再前缀匹配补充
-    pub fn lookup(&self, input: &str, wildcard_enabled: bool, max_results: usize) -> Vec<&DictEntry> {
+    pub fn lookup(
+        &self,
+        input: &str,
+        wildcard_enabled: bool,
+        max_results: usize,
+    ) -> Vec<&DictEntry> {
         if input.is_empty() {
             return vec![];
         }
@@ -130,19 +135,15 @@ impl DictEngine {
 
         // 先加精确匹配（编码长度 == 输入长度）
         for entry in &prefix {
-            if entry.code.len() == input.len() {
-                if seen.insert((&entry.code, &entry.text)) {
-                    results.push(*entry);
-                }
+            if entry.code.len() == input.len() && seen.insert((&entry.code, &entry.text)) {
+                results.push(*entry);
             }
         }
 
         // 再加前缀匹配（编码长度 > 输入长度）
         for entry in &prefix {
-            if entry.code.len() > input.len() {
-                if seen.insert((&entry.code, &entry.text)) {
-                    results.push(*entry);
-                }
+            if entry.code.len() > input.len() && seen.insert((&entry.code, &entry.text)) {
+                results.push(*entry);
             }
             if results.len() >= max_results {
                 break;
