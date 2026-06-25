@@ -6,7 +6,8 @@ private let logger = OSLog(subsystem: "com.hangewubi.inputmethod.HangeWubi", cat
 
 private func debugLog(_ message: String) {
     os_log("%{public}@", log: logger, type: .default, message)
-    // 同时写文件日志
+    #if DEBUG
+    // 同时写文件日志（仅 DEBUG 构建，避免 release 热路径同步写盘）
     let logFile = "/tmp/hangewubi.log"
     let timestamp = ISO8601DateFormatter().string(from: Date())
     let line = "[\(timestamp)] \(message)\n"
@@ -21,6 +22,7 @@ private func debugLog(_ message: String) {
             FileManager.default.createFile(atPath: logFile, contents: data)
         }
     }
+    #endif
 }
 
 // MARK: - Notifications
@@ -47,6 +49,7 @@ class HangeWubiSettings {
             "autoCommitUnique4": true,
             "autoCommitFirst5": true,
             "progressiveHint": true,
+            "pinyinMixedEnabled": false,
             "emptyCodeAction": 0,
             "enterKeyAction": 0,
             // Basic - Candidates
@@ -78,6 +81,11 @@ class HangeWubiSettings {
     var progressiveHint: Bool {
         get { defaults.bool(forKey: "progressiveHint") }
         set { defaults.set(newValue, forKey: "progressiveHint") }
+    }
+
+    var pinyinMixedEnabled: Bool {
+        get { defaults.bool(forKey: "pinyinMixedEnabled") }
+        set { defaults.set(newValue, forKey: "pinyinMixedEnabled") }
     }
 
     var emptyCodeAction: Int {
@@ -189,6 +197,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
     private var autoCommitUnique4Check: NSButton!
     private var autoCommitFirst5Check: NSButton!
     private var progressiveHintCheck: NSButton!
+    private var pinyinMixedEnabledCheck: NSButton!
     private var emptyCodePopup: NSPopUpButton!
     private var enterKeyPopup: NSPopUpButton!
     private var candidateLayoutPopup: NSPopUpButton!
@@ -266,7 +275,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
 
         // --- Section: 编码 ---
         y -= 10
-        y = addSectionBox(to: contentView, title: "编码", y: y, height: 210) { box, startY in
+        y = addSectionBox(to: contentView, title: "编码", y: y, height: 242) { box, startY in
             var innerY = startY
 
             self.autoCommitUnique4Check = self.addCheckbox(
@@ -280,6 +289,10 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
             self.progressiveHintCheck = self.addCheckbox(
                 to: box, title: "逐码提示", y: &innerY,
                 checked: settings.progressiveHint, action: #selector(self.progressiveHintChanged(_:)))
+
+            self.pinyinMixedEnabledCheck = self.addCheckbox(
+                to: box, title: "启用拼音混输", y: &innerY,
+                checked: settings.pinyinMixedEnabled, action: #selector(self.pinyinMixedEnabledChanged(_:)))
 
             self.emptyCodePopup = self.addDropdownRow(
                 to: box, label: "空码时：", y: &innerY,
@@ -511,6 +524,12 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
         debugLog("Setting progressiveHint = \(sender.state == .on)")
     }
 
+    @objc private func pinyinMixedEnabledChanged(_ sender: NSButton) {
+        HangeWubiSettings.shared.pinyinMixedEnabled = sender.state == .on
+        debugLog("Setting pinyinMixedEnabled = \(sender.state == .on)")
+        notifyEngineConfigChanged()
+    }
+
     @objc private func emptyCodeActionChanged(_ sender: NSPopUpButton) {
         HangeWubiSettings.shared.emptyCodeAction = sender.indexOfSelectedItem
         debugLog("Setting emptyCodeAction = \(sender.indexOfSelectedItem)")
@@ -585,6 +604,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
         autoCommitUnique4Check.state = s.autoCommitUnique4 ? .on : .off
         autoCommitFirst5Check.state = s.autoCommitFirst5 ? .on : .off
         progressiveHintCheck.state = s.progressiveHint ? .on : .off
+        pinyinMixedEnabledCheck.state = s.pinyinMixedEnabled ? .on : .off
         emptyCodePopup.selectItem(at: s.emptyCodeAction)
         enterKeyPopup.selectItem(at: s.enterKeyAction)
         candidateLayoutPopup.selectItem(at: s.candidateLayout)
@@ -611,7 +631,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate {
 class CandidateWindow: NSPanel {
     static let shared = CandidateWindow()
 
-    private let containerView = NSView()
+    private let containerView = NSVisualEffectView()
     private let padding: CGFloat = 10
     private let cornerRadius: CGFloat = 6
 
@@ -625,11 +645,13 @@ class CandidateWindow: NSPanel {
         self.isOpaque = false
         self.backgroundColor = .clear
 
+        // 用毛玻璃材质，自动跟随系统明暗，避免暗色下露白底
+        containerView.material = .menu
+        containerView.blendingMode = .behindWindow
+        containerView.state = .active
         containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         containerView.layer?.cornerRadius = cornerRadius
-        containerView.layer?.borderColor = NSColor.separatorColor.cgColor
-        containerView.layer?.borderWidth = 0.5
+        containerView.layer?.masksToBounds = true
         containerView.autoresizingMask = [.width, .height]
         self.contentView = containerView
     }
@@ -642,6 +664,21 @@ class CandidateWindow: NSPanel {
         case 3: return NSColor.controlAccentColor
         default: return NSColor(calibratedRed: 0.25, green: 0.52, blue: 0.85, alpha: 1.0)
         }
+    }
+
+    /// 为首选项构造一个圆角强调色块（放在文字下方），对齐原生首选高亮
+    private func highlightBlock(for label: NSTextField, color: NSColor) -> NSView {
+        let padX: CGFloat = 5
+        let padY: CGFloat = 2
+        let frame = NSRect(x: label.frame.origin.x - padX,
+                           y: label.frame.origin.y - padY,
+                           width: label.frame.width + padX * 2,
+                           height: label.frame.height + padY * 2)
+        let block = NSView(frame: frame)
+        block.wantsLayer = true
+        block.layer?.backgroundColor = color.cgColor
+        block.layer?.cornerRadius = 4
+        return block
     }
 
     func show(candidates: [String], code: String, near cursorRect: NSRect) {
@@ -709,11 +746,14 @@ class CandidateWindow: NSPanel {
 
                 let textLabel = NSTextField(labelWithString: candidates[i])
                 textLabel.font = NSFont.systemFont(ofSize: fontSize)
-                textLabel.textColor = i == 0 ? highlightColor : .labelColor
+                textLabel.textColor = i == 0 ? .white : .labelColor
                 textLabel.isBezeled = false
                 textLabel.isEditable = false
                 textLabel.sizeToFit()
                 textLabel.frame.origin = NSPoint(x: padding + numLabel.frame.width, y: rowY + (candidateLineHeight - textLabel.frame.height) / 2)
+                if i == 0 {
+                    containerView.addSubview(highlightBlock(for: textLabel, color: highlightColor))
+                }
                 containerView.addSubview(textLabel)
             }
 
@@ -743,6 +783,7 @@ class CandidateWindow: NSPanel {
             // 横向排列
             var xOffset: CGFloat = padding
             let candidateSpacing: CGFloat = 12
+            var firstTextLabel: NSTextField?
 
             for i in 0..<count {
                 let numStr = "\(i + 1). "
@@ -759,12 +800,13 @@ class CandidateWindow: NSPanel {
 
                 let textLabel = NSTextField(labelWithString: candidates[i])
                 textLabel.font = NSFont.systemFont(ofSize: fontSize)
-                textLabel.textColor = i == 0 ? highlightColor : .labelColor
+                textLabel.textColor = i == 0 ? .white : .labelColor
                 textLabel.isBezeled = false
                 textLabel.isEditable = false
                 textLabel.sizeToFit()
                 textLabel.frame.origin = NSPoint(x: xOffset, y: 0)
                 containerView.addSubview(textLabel)
+                if i == 0 { firstTextLabel = textLabel }
 
                 xOffset += textLabel.frame.width + candidateSpacing
             }
@@ -783,6 +825,12 @@ class CandidateWindow: NSPanel {
                 var frame = view.frame
                 frame.origin.y = candidateY + (candidateLineHeight - frame.height) / 2
                 view.frame = frame
+            }
+
+            // 首选强调色块（在文字居中后再插入，置于首选文字下方）
+            if let firstTextLabel = firstTextLabel {
+                let block = highlightBlock(for: firstTextLabel, color: highlightColor)
+                containerView.addSubview(block, positioned: .below, relativeTo: firstTextLabel)
             }
 
             // 屏幕边界检测
@@ -833,12 +881,13 @@ class ModeIndicatorWindow: NSPanel {
         self.isOpaque = false
         self.backgroundColor = .clear
 
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 36, height: 36))
+        let container = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 36, height: 36))
+        container.material = .menu
+        container.blendingMode = .behindWindow
+        container.state = .active
         container.wantsLayer = true
-        container.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         container.layer?.cornerRadius = 6
-        container.layer?.borderColor = NSColor.separatorColor.cgColor
-        container.layer?.borderWidth = 0.5
+        container.layer?.masksToBounds = true
         self.contentView = container
 
         label.font = NSFont.systemFont(ofSize: 18, weight: .medium)
@@ -881,20 +930,37 @@ class InputController: IMKInputController {
     // Shift toggle tracking
     private var shiftPressed = false
 
+    /// 用户词典持久化路径：~/Library/Application Support/晗戈五笔/user_dict.json
+    /// load 与 save 共用此路径；访问时确保目录存在。
+    private var userDictPath: String {
+        let fm = FileManager.default
+        let baseDir = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+        let dir = baseDir.appendingPathComponent("晗戈五笔", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("user_dict.json").path
+    }
+
     override init!(server: IMKServer!, delegate: Any!, client inputClient: Any!) {
         super.init(server: server, delegate: delegate, client: inputClient)
         debugLog("InputController.init 被调用")
 
-        // 初始化 Rust 引擎
+        // 初始化 Rust 引擎（五笔 + 拼音混输）
         let bundlePath = Bundle.main.resourcePath ?? ""
         let dictPath = "\(bundlePath)/data/wubi86.txt"
-        debugLog("码表路径: \(dictPath)")
-        let count = ffi_init(dictPath)
+        let pinyinPath = "\(bundlePath)/data/pinyin.txt"
+        debugLog("码表路径: \(dictPath)  拼音路径: \(pinyinPath)")
+        let count = ffi_init_with_pinyin(dictPath, pinyinPath)
         if count < 0 {
             debugLog("码表加载失败: \(dictPath)")
         } else {
             debugLog("已加载 \(count) 条词条")
         }
+
+        // 加载用户词典（自造词/调频持久化）
+        let userDict = userDictPath
+        let loaded = userDict.withCString { ffi_load_user_dict($0) }
+        debugLog("加载用户词典: \(userDict) -> \(loaded)")
 
         syncConfigToEngine()
 
@@ -915,9 +981,9 @@ class InputController: IMKInputController {
             UInt8(s.enterKeyAction),
             UInt8(s.emptyCodeAction),
             UInt8(s.candidateCountValue),
-            false // macOS 暂不启用拼音混输
+            s.pinyinMixedEnabled
         )
-        debugLog("syncConfigToEngine: unique4=\(s.autoCommitUnique4) first5=\(s.autoCommitFirst5) enter=\(s.enterKeyAction) empty=\(s.emptyCodeAction) count=\(s.candidateCountValue)")
+        debugLog("syncConfigToEngine: unique4=\(s.autoCommitUnique4) first5=\(s.autoCommitFirst5) enter=\(s.enterKeyAction) empty=\(s.emptyCodeAction) count=\(s.candidateCountValue) pinyinMixed=\(s.pinyinMixedEnabled)")
     }
 
     // MARK: - Menu
@@ -965,6 +1031,11 @@ class InputController: IMKInputController {
                                replacementRange: NSRange(location: NSNotFound, length: 0))
         }
         hideCandidates()
+
+        // 落盘用户词典（自造词/调频持久化）
+        let userDict = userDictPath
+        let saved = userDict.withCString { ffi_save_user_dict($0) }
+        debugLog("保存用户词典: \(userDict) -> \(saved)")
     }
 
     // MARK: - Event Handling
@@ -1221,13 +1292,8 @@ class InputController: IMKInputController {
             for i in 0..<list.count {
                 let candidate = candidates[i]
                 if let text = candidate.text {
-                    let str = String(cString: text)
-                    if let code = candidate.code {
-                        let codeStr = String(cString: code)
-                        result.append("\(str) [\(codeStr)]")
-                    } else {
-                        result.append(str)
-                    }
+                    // 只保留汉字本身；编码已在候选窗顶部 code 行单独显示，序号由候选窗绘制
+                    result.append(String(cString: text))
                 }
             }
         }
@@ -1244,13 +1310,7 @@ class InputController: IMKInputController {
             for i in 0..<list.count {
                 let candidate = candidates[i]
                 if let text = candidate.text {
-                    let str = String(cString: text)
-                    if let code = candidate.code {
-                        let codeStr = String(cString: code)
-                        result.append("\(i + 1). \(str) [\(codeStr)]")
-                    } else {
-                        result.append("\(i + 1). \(str)")
-                    }
+                    result.append("\(i + 1). \(String(cString: text))")
                 }
             }
         }
