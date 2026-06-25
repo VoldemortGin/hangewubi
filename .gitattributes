@@ -1,0 +1,7 @@
+# 生成产物治理（铁律 4）
+#
+# include/hangewubi.h 由 build.rs + cbindgen 从 src/ffi.rs 自动生成。
+# 标记为 linguist-generated：从语言统计/默认 diff 折叠中排除，表明它是
+# 派生产物而非手写源。保持可 diff（不加 -diff / 不当二进制），漂移守卫
+# scripts/check_bindings.sh 仍可用 `git diff --exit-code` 检测契约漂移。
+include/hangewubi.h linguist-generated=true

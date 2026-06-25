@@ -137,11 +137,15 @@ echo "[4/4] 构建 Xcode 项目..."
 if [[ "$BUILD_MODE" == "dev" ]]; then
     # 模拟器构建
     echo "  构建 Debug (iOS Simulator)..."
+    # 仅构建 arm64 模拟器切片：与上方 Rust target aarch64-apple-ios-sim 对齐。
+    # 否则较新 Xcode 会同时构建 x86_64 切片，而 Rust 静态库无 x86_64 切片导致链接失败。
     xcodebuild \
         -project "$SCRIPT_DIR/HangeWubi.xcodeproj" \
         -target HangeWubi \
         -configuration Debug \
         -sdk iphonesimulator \
+        ARCHS=arm64 \
+        ONLY_ACTIVE_ARCH=YES \
         CODE_SIGNING_ALLOWED=NO \
         build
 
