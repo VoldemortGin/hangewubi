@@ -8,3 +8,11 @@ ci-logs/
 *.cer
 *.p12
 platform/ios/build/
+
+# Android 构建产物（铁律 4 + 仓库卫生）—— 精确目录规则，避免误伤源码
+platform/android/.gradle/
+platform/android/.kotlin/
+platform/android/build/
+platform/android/app/build/
+platform/android/app/.cxx/
+platform/android/local.properties
