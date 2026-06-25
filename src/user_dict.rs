@@ -88,7 +88,8 @@ impl UserDict {
             .get(code)
             .map(|entries| {
                 let mut sorted: Vec<&UserEntry> = entries.iter().collect();
-                sorted.sort_by(|a, b| b.weight.cmp(&a.weight));
+                // 权重降序；等权重时按 text 升序，保证跨重启的确定性顺序
+                sorted.sort_by(|a, b| b.weight.cmp(&a.weight).then(a.text.cmp(&b.text)));
                 sorted
             })
             .unwrap_or_default()
