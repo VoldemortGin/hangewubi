@@ -1,1 +1,0 @@
-ninja: Entering directory `/Users/linhan/startup/hangewubi/platform/android/app/.cxx/Debug/2955723o/armeabi-v7a'
