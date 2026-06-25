@@ -92,7 +92,13 @@ cp "$SCRIPT_DIR/Info.plist" "$BUILD_DIR/$APP_NAME/Contents/"
 # ==================== 3. 编译 Swift 壳 ====================
 
 echo "[3/6] 编译 Swift 壳..."
+# dev 模式定义 DEBUG（启用 /tmp 文件日志）；release/dist 不定义，关闭热路径写盘
+SWIFT_MODE_FLAGS=""
+if [[ "$BUILD_MODE" == "dev" ]]; then
+    SWIFT_MODE_FLAGS="-DDEBUG"
+fi
 swiftc \
+    $SWIFT_MODE_FLAGS \
     -target arm64-apple-macos14.0 \
     -import-objc-header "$SCRIPT_DIR/BridgingHeader.h" \
     -L "$PROJECT_ROOT/target/release" \
@@ -108,6 +114,7 @@ swiftc \
 echo "[4/6] 复制资源..."
 cp "$PROJECT_ROOT/target/release/libhangewubi.dylib" "$BUILD_DIR/$APP_NAME/Contents/MacOS/"
 cp "$PROJECT_ROOT/data/wubi86.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
+cp "$PROJECT_ROOT/data/pinyin.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 cp "$PROJECT_ROOT/data/config.toml" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 
 # 复制应用图标
