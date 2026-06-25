@@ -11,6 +11,8 @@ pub struct DictEntry {
     pub text: String,
     /// 权重（越大越靠前）
     pub weight: u32,
+    /// 码表文件中的出现序（用于等权重时的确定性排序）
+    pub origin_index: usize,
 }
 
 /// 码表引擎：管理五笔编码到汉字的映射
@@ -71,7 +73,12 @@ impl DictEngine {
         let index = self.entries.len();
         self.trie.insert(&code, index);
         self.exact_map.entry(code.clone()).or_default().push(index);
-        self.entries.push(DictEntry { code, text, weight });
+        self.entries.push(DictEntry {
+            code,
+            text,
+            weight,
+            origin_index: index,
+        });
     }
 
     /// 精确匹配查询
@@ -83,7 +90,12 @@ impl DictEngine {
             .unwrap_or_default();
 
         // 按权重降序排列
-        results.sort_by(|a, b| b.weight.cmp(&a.weight));
+        results.sort_by(|a, b| {
+            b.weight
+                .cmp(&a.weight)
+                .then(a.code.len().cmp(&b.code.len()))
+                .then(a.origin_index.cmp(&b.origin_index))
+        });
         results
     }
 
@@ -91,7 +103,12 @@ impl DictEngine {
     pub fn lookup_prefix(&self, prefix: &str) -> Vec<&DictEntry> {
         let indices = self.trie.prefix_match(prefix);
         let mut results: Vec<&DictEntry> = indices.iter().map(|&i| &self.entries[i]).collect();
-        results.sort_by(|a, b| b.weight.cmp(&a.weight));
+        results.sort_by(|a, b| {
+            b.weight
+                .cmp(&a.weight)
+                .then(a.code.len().cmp(&b.code.len()))
+                .then(a.origin_index.cmp(&b.origin_index))
+        });
         results
     }
 
@@ -99,7 +116,12 @@ impl DictEngine {
     pub fn lookup_wildcard(&self, pattern: &str) -> Vec<&DictEntry> {
         let indices = self.trie.wildcard_match(pattern);
         let mut results: Vec<&DictEntry> = indices.iter().map(|&i| &self.entries[i]).collect();
-        results.sort_by(|a, b| b.weight.cmp(&a.weight));
+        results.sort_by(|a, b| {
+            b.weight
+                .cmp(&a.weight)
+                .then(a.code.len().cmp(&b.code.len()))
+                .then(a.origin_index.cmp(&b.origin_index))
+        });
         results
     }
 
@@ -241,5 +263,38 @@ bb\t子\t5500
         let dict = sample_dict();
         let results = dict.lookup_exact("xyz");
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_deterministic_equal_weight_ordering() {
+        // 5 个等权重、跨 trie 分支的重码（共享前缀 a），验证多次重建+查询的
+        // 候选顺序完全一致，且等权重时按 origin_index（码表出现序）稳定排序。
+        let content = "ab\t波\t100
+ac\t茨\t100
+ad\t德\t100
+ae\t鹅\t100
+af\t佛\t100
+";
+        let order = || {
+            let mut dict = DictEngine::new();
+            dict.load_from_str(content);
+            dict.lookup("a", false, 10)
+                .into_iter()
+                .map(|e| e.text.clone())
+                .collect::<Vec<String>>()
+        };
+        let expected = vec![
+            "波".to_string(),
+            "茨".to_string(),
+            "德".to_string(),
+            "鹅".to_string(),
+            "佛".to_string(),
+        ];
+        let first = order();
+        assert_eq!(first, expected);
+        // 多次重建查询结果必须逐项一致（不受 HashMap 迭代序漂移影响）
+        for _ in 0..50 {
+            assert_eq!(order(), first);
+        }
     }
 }

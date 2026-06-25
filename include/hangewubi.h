@@ -125,6 +125,11 @@ void ffi_add_user_word(const char *code, const char *text);
 // 保存用户词典
 bool ffi_save_user_dict(const char *path);
 
+// 从磁盘加载用户词典到引擎（启动时调用）
+// path: 用户词典 JSON 文件路径（与 ffi_save_user_dict 使用同一路径）
+// 文件不存在或解析失败时退化为空词典；引擎已初始化且 path 非空返回 true。
+bool ffi_load_user_dict(const char *path);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

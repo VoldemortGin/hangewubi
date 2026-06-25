@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// 五笔编码 Trie 树
 /// 支持精确匹配和前缀匹配，专为 a-z 的26个字母优化
@@ -9,7 +9,7 @@ pub struct Trie {
 
 #[derive(Debug, Default)]
 struct TrieNode {
-    children: HashMap<u8, TrieNode>,
+    children: BTreeMap<u8, TrieNode>,
     /// 该节点对应的候选词索引列表
     values: Vec<usize>,
 }

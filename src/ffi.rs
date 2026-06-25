@@ -385,3 +385,18 @@ pub unsafe extern "C" fn ffi_save_user_dict(path: *const c_char) -> bool {
         e.user_dict().save(&PathBuf::from(path.as_ref())).is_ok()
     })
 }
+
+/// 从磁盘加载用户词典到引擎（启动时调用）
+/// path: 用户词典 JSON 文件路径（与 ffi_save_user_dict 使用同一路径）
+/// 文件不存在或解析失败时退化为空词典；引擎已初始化且 path 非空返回 true。
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ffi_load_user_dict(path: *const c_char) -> bool {
+    if path.is_null() {
+        return false;
+    }
+    let path = unsafe { CStr::from_ptr(path) }.to_string_lossy();
+    with_engine(false, |e| {
+        e.load_user_dict(&PathBuf::from(path.as_ref()));
+        true
+    })
+}

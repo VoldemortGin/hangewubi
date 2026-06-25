@@ -2,6 +2,7 @@ use crate::config::Config;
 use crate::dict::DictEngine;
 use crate::punctuation::PunctuationConverter;
 use crate::user_dict::UserDict;
+use std::path::Path;
 
 /// 候选词（统一的对外接口）
 #[derive(Debug, Clone)]
@@ -11,6 +12,8 @@ pub struct Candidate {
     pub weight: u32,
     /// 是否来自用户词典
     pub is_user: bool,
+    /// 来源码表中的出现序（用于等权重时的确定性排序）
+    pub origin_index: usize,
 }
 
 /// 引擎动作：引擎处理按键后返回的动作
@@ -130,30 +133,32 @@ impl InputEngine {
             return EngineAction::Unhandled;
         }
 
-        self.buffer.push(key);
-        self.update_candidates();
-
         // 拼音混输模式下，编码可能超过4码，放宽自动上屏限制
         let pinyin_active = self.config.pinyin_mixed_enabled && self.pinyin_dict.is_some();
+
+        // 第五码顶字：全码已满（五笔=4）且仍有候选，再敲字母 → 顶前字首选、新键起新字
+        if !pinyin_active
+            && self.config.auto_commit_first_five
+            && self.buffer.len() >= 4
+            && !self.candidates.is_empty()
+        {
+            let text = self.candidates[0].text.clone();
+            let code = self.candidates[0].code.clone();
+            self.user_dict.boost(&code, &text);
+            self.reset();
+            self.buffer.push(key);
+            self.update_candidates();
+            return EngineAction::Commit(text);
+        }
+
+        self.buffer.push(key);
+        self.update_candidates();
 
         // 四码唯一自动上屏（拼音混输时跳过，因为用户可能在输入拼音）
         if !pinyin_active
             && self.config.auto_commit_on_unique_four
             && self.buffer.len() == 4
             && self.candidates.len() == 1
-        {
-            let text = self.candidates[0].text.clone();
-            let code = self.candidates[0].code.clone();
-            self.user_dict.boost(&code, &text);
-            self.reset();
-            return EngineAction::Commit(text);
-        }
-
-        // 五码首选自动上屏（拼音混输时跳过）
-        if !pinyin_active
-            && self.config.auto_commit_first_five
-            && self.buffer.len() == 5
-            && !self.candidates.is_empty()
         {
             let text = self.candidates[0].text.clone();
             let code = self.candidates[0].code.clone();
@@ -458,12 +463,13 @@ impl InputEngine {
 
         // 先查用户词典
         let user_entries = self.user_dict.lookup(&self.buffer);
-        for entry in user_entries {
+        for (i, entry) in user_entries.iter().enumerate() {
             self.candidates.push(Candidate {
                 code: entry.code.clone(),
                 text: entry.text.clone(),
                 weight: entry.weight + 50000, // 用户词典权重加成（始终优先）
                 is_user: true,
+                origin_index: i,
             });
         }
 
@@ -490,6 +496,7 @@ impl InputEngine {
                     text: entry.text.clone(),
                     weight: entry.weight + weight_boost,
                     is_user: false,
+                    origin_index: entry.origin_index,
                 });
             }
         }
@@ -517,13 +524,20 @@ impl InputEngine {
                         text: entry.text.clone(),
                         weight: entry.weight + weight_boost,
                         is_user: false,
+                        origin_index: entry.origin_index,
                     });
                 }
             }
         }
 
-        // 按权重排序（精确匹配因加成自然排前面）
-        self.candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
+        // 确定性多级排序：权重降序 → 编码长度升序 → origin_index 升序
+        // （精确匹配因加成自然排前面；等权重时按来源出现序稳定排列）
+        self.candidates.sort_by(|a, b| {
+            b.weight
+                .cmp(&a.weight)
+                .then(a.code.len().cmp(&b.code.len()))
+                .then(a.origin_index.cmp(&b.origin_index))
+        });
         self.candidates.truncate(max_candidates);
     }
 
@@ -548,6 +562,11 @@ impl InputEngine {
     /// 获取用户词典引用（用于保存等操作）
     pub fn user_dict(&self) -> &UserDict {
         &self.user_dict
+    }
+
+    /// 从磁盘加载用户词典（加载失败不 panic，退化为空词典）
+    pub fn load_user_dict(&mut self, path: &Path) {
+        self.user_dict = UserDict::load(path).unwrap_or_default();
     }
 
     /// 手动添加用户词条
@@ -630,6 +649,59 @@ gglf\t王\t8000
         let action = engine.handle_key('f');
         assert_eq!(action, EngineAction::Commit("王".to_string()));
         assert!(engine.buffer().is_empty());
+    }
+
+    fn create_dupe_test_engine() -> InputEngine {
+        // abcd 为四码重码（候选≥2），不会四码唯一上屏；e 为另一个起首码
+        let mut dict = DictEngine::new();
+        dict.load_from_str(
+            "abcd\t重\t5000
+abcd\t码\t4000
+e\t鹅\t9000
+",
+        );
+        let config = Config {
+            candidate_count: 5,
+            auto_commit_on_unique_four: true,
+            auto_commit_first_five: true,
+            wildcard_z_enabled: true,
+            ..Config::default()
+        };
+        InputEngine::new(dict, UserDict::new(), config)
+    }
+
+    #[test]
+    fn test_fifth_code_pushes_first_candidate() {
+        let mut engine = create_dupe_test_engine();
+        // 输入四码重码：候选≥2，不应自动上屏，缓冲区停在 4 码
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        assert!(engine.candidates().len() >= 2);
+        assert_eq!(engine.buffer(), "abcd");
+
+        // 第五码：顶前字首选 "重" 上屏，新键 e 起新字
+        let action = engine.handle_key('e');
+        assert_eq!(action, EngineAction::Commit("重".to_string()));
+        assert_eq!(engine.buffer(), "e");
+        assert!(!engine.candidates().is_empty());
+        assert!(engine.candidates().iter().any(|c| c.text == "鹅"));
+    }
+
+    #[test]
+    fn test_fifth_code_no_dead_lock() {
+        let mut engine = create_dupe_test_engine();
+        // 复现旧 bug：四码重码后连敲两个字母，引擎不应卡死在“5 字符零候选”
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        // 第五码顶 "重"
+        assert_eq!(
+            engine.handle_key('a'),
+            EngineAction::Commit("重".to_string())
+        );
+        assert_eq!(engine.buffer(), "a");
+        assert!(!engine.candidates().is_empty());
     }
 
     #[test]
