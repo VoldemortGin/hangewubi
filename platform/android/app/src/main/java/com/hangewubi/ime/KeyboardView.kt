@@ -41,6 +41,13 @@ class KeyboardView @JvmOverloads constructor(
         textAlign = Paint.Align.CENTER
         typeface = Typeface.DEFAULT
     }
+    // 回车键文字恒为白色，单独持有避免 onDraw 内反复 new
+    private val enterTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT
+        color = android.graphics.Color.WHITE
+    }
+    private val shadowRect = RectF()
     private var bgColor = 0
 
     private val keyRadius = 8f
@@ -161,6 +168,7 @@ class KeyboardView @JvmOverloads constructor(
 
         textPaint.textSize = rowHeight * 0.38f
         subtextPaint.textSize = rowHeight * 0.22f
+        enterTextPaint.textSize = rowHeight * 0.38f
 
         if (showSymbols) {
             layoutRow(symbolRow1, 0f, m, w, rowHeight, m)
@@ -222,7 +230,7 @@ class KeyboardView @JvmOverloads constructor(
             val isPressed = key == pressedKey
             val r = key.rect
 
-            val shadowRect = RectF(r.left, r.top + 2f, r.right, r.bottom + 2f)
+            shadowRect.set(r.left, r.top + 2f, r.right, r.bottom + 2f)
             canvas.drawRoundRect(shadowRect, keyRadius, keyRadius, shadowPaint)
 
             val paint = when {
@@ -251,7 +259,7 @@ class KeyboardView @JvmOverloads constructor(
             }
 
             val tp = if (key.keyCode == KeyEvent.KEYCODE_ENTER) {
-                Paint(textPaint).apply { color = android.graphics.Color.WHITE }
+                enterTextPaint
             } else {
                 textPaint
             }
