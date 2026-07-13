@@ -13,7 +13,7 @@
 |---|------|------|
 | ① | **核心唯一** | 所有共享逻辑（引擎 / 拆字 / 校验 / 解析 / 配置）只在 Rust 核心 `src/`。宿主一律薄，**禁止在宿主语言里重新实现任何引擎逻辑**——宿主只做平台集成、UI、把 C 契约转成本地习惯用法。 |
 | ② | **契约唯一且为生成产物** | 跨语言契约只有一处 = `include/hangewubi.h`，**它由 cbindgen 从 `src/ffi.rs` 自动生成，禁止手工编辑**。改契约 = 改 `src/ffi.rs` → `cargo build` 重新生成头 → 各宿主适配。手改头文件会被漂移守卫拦下。 |
-| ③ | **无 panic 跨界** | FFI 边界（`src/ffi.rs`）必须吞掉所有 panic：lock 从中毒（poison）恢复、引擎未初始化时返回安全默认值（空候选 / Unhandled / -1），release profile 设 `panic = "abort"`。任何 panic 都不得越过 C-ABI 进入宿主进程。 |
+| ③ | **无 panic 跨界** | FFI 边界（`src/ffi.rs`）必须吞掉所有 panic：每个 `pub extern "C"` 入口经统一守卫 `ffi_guard`（`catch_unwind`）包裹，panic 被捕获后返回该函数的安全默认值（空候选 / Unhandled / -1 / false / 空指针）并尽力重置引擎组合状态；lock 从中毒（poison）恢复。release profile 采用默认 `unwind`（**非** `abort`——abort 是杀进程而非「吞」）。任何 panic 都不得越过 C-ABI 进入宿主进程。 |
 | ④ | **唯一裁判是 `make check`** | 合并前唯一的门禁是组合命令 `make check`：跑 Rust 测试 + clippy + fmt + **头文件漂移守卫**（重生成 `hangewubi.h` 并比对，确认未手改且与 `src/ffi.rs` 同步）+ 本机可构建的宿主。绿了才算过。 |
 
 ---

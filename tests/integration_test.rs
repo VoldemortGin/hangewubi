@@ -172,3 +172,27 @@ fn test_four_code_unique_auto_commit() {
         _ => {}
     }
 }
+
+#[test]
+fn test_ffi_non_ascii_key_is_unhandled() {
+    use hangewubi::ffi::{FfiAction, ffi_handle_key, ffi_handle_punctuation};
+    use std::os::raw::c_char;
+
+    // 非 ASCII 字节（高位置 1 / 在 i8 下为负值）不得被 `as char` 静默截断，
+    // 应安全降级为 Unhandled 且不 panic，且无需释放 text（为空指针）。
+    for raw in [0x80u8, 0xFF, 0xE4] {
+        let r = ffi_handle_key(raw as c_char);
+        assert!(
+            matches!(r.action, FfiAction::Unhandled),
+            "字节 {raw:#x} 应 Unhandled"
+        );
+        assert!(r.text.is_null());
+
+        let p = ffi_handle_punctuation(raw as c_char);
+        assert!(
+            matches!(p.action, FfiAction::Unhandled),
+            "字节 {raw:#x} 应 Unhandled"
+        );
+        assert!(p.text.is_null());
+    }
+}

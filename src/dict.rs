@@ -45,8 +45,13 @@ impl DictEngine {
     }
 
     /// 从字符串加载码表
+    ///
+    /// 权重超过 [`crate::engine::MAX_DICT_WEIGHT`] 的行会被钳制到该上限，
+    /// 固化"精确匹配加成 / 用户词典加成 > 任何码表词频"的排序层级（见 engine.rs 顶部）。
     pub fn load_from_str(&mut self, content: &str) -> usize {
         let mut count = 0;
+        #[cfg(debug_assertions)]
+        let mut clamped = 0usize;
         for line in content.lines() {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
@@ -60,10 +65,23 @@ impl DictEngine {
 
             let code = parts[0].to_string();
             let text = parts[1].to_string();
-            let weight = parts.get(2).and_then(|w| w.parse().ok()).unwrap_or(100);
+            let raw_weight: u32 = parts.get(2).and_then(|w| w.parse().ok()).unwrap_or(100);
+            // 钳制到码表权重上限，防换码表（权重 >MAX_DICT_WEIGHT）静默破坏排序层级。
+            let weight = raw_weight.min(crate::engine::MAX_DICT_WEIGHT);
+            #[cfg(debug_assertions)]
+            if raw_weight > crate::engine::MAX_DICT_WEIGHT {
+                clamped += 1;
+            }
 
             self.add_entry(code, text, weight);
             count += 1;
+        }
+        #[cfg(debug_assertions)]
+        if clamped > 0 {
+            eprintln!(
+                "[dict] 已钳制 {clamped} 条超过 MAX_DICT_WEIGHT={} 的码表权重",
+                crate::engine::MAX_DICT_WEIGHT
+            );
         }
         count
     }
@@ -263,6 +281,24 @@ bb\t子\t5500
         let dict = sample_dict();
         let results = dict.lookup_exact("xyz");
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_weight_clamped_to_max() {
+        // 超过 MAX_DICT_WEIGHT 的码表权重在加载时被钳制到上限
+        let mut dict = DictEngine::new();
+        dict.load_from_str("a\t工\t99999\n");
+        let entries = dict.lookup_exact("a");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].weight, crate::engine::MAX_DICT_WEIGHT);
+    }
+
+    #[test]
+    fn test_weight_below_max_untouched() {
+        // 未超限的权重原样保留
+        let mut dict = DictEngine::new();
+        dict.load_from_str("a\t工\t500\n");
+        assert_eq!(dict.lookup_exact("a")[0].weight, 500);
     }
 
     #[test]
