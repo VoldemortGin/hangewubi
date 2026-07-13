@@ -16,6 +16,10 @@ class CandidateBarView: UIView {
 
     private(set) var candidates: [(text: String, code: String)] = []
 
+    // 复用池：候选按钮与分隔线只创建一次，逐键只更新内容与显隐，避免每键全量重建视图与约束。
+    private var buttonPool: [UIButton] = []
+    private var separatorPool: [UIView] = []
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
@@ -81,31 +85,26 @@ class CandidateBarView: UIView {
 
     func updateCandidates(_ newCandidates: [(text: String, code: String)]) {
         candidates = newCandidates
+        let count = newCandidates.count
 
-        stackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        // 从栈中移出全部已排列视图（保留视图与其约束，仅解除排列关系），随后按序复用重排。
+        for view in stackView.arrangedSubviews {
+            stackView.removeArrangedSubview(view)
+            view.isHidden = true
+        }
 
         for (index, candidate) in newCandidates.enumerated() {
             // 候选项 = 序号 + 候选词
-            let item = makeCandidateButton(index: index, text: candidate.text)
-            stackView.addArrangedSubview(item)
+            let button = dequeueButton(at: index)
+            configureButton(button, index: index, text: candidate.text)
+            button.isHidden = false
+            stackView.addArrangedSubview(button)
 
             // 分隔线（除最后一项）
-            if index < newCandidates.count - 1 {
-                let sep = UIView()
-                sep.backgroundColor = .separator
-                sep.translatesAutoresizingMaskIntoConstraints = false
-                sep.widthAnchor.constraint(equalToConstant: 0.5).isActive = true
-
-                let wrapper = UIView()
-                wrapper.translatesAutoresizingMaskIntoConstraints = false
-                wrapper.addSubview(sep)
-                NSLayoutConstraint.activate([
-                    sep.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
-                    sep.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
-                    sep.heightAnchor.constraint(equalTo: wrapper.heightAnchor, multiplier: 0.45),
-                    wrapper.widthAnchor.constraint(equalToConstant: 1),
-                ])
-                stackView.addArrangedSubview(wrapper)
+            if index < count - 1 {
+                let sep = dequeueSeparator(at: index)
+                sep.isHidden = false
+                stackView.addArrangedSubview(sep)
             }
         }
 
@@ -113,7 +112,38 @@ class CandidateBarView: UIView {
         isHidden = newCandidates.isEmpty && (preeditLabel.text ?? "").isEmpty
     }
 
-    private func makeCandidateButton(index: Int, text: String) -> UIButton {
+    /// 取复用池中第 index 个候选按钮，不足则新建一次并入池。
+    private func dequeueButton(at index: Int) -> UIButton {
+        if index < buttonPool.count { return buttonPool[index] }
+        let button = UIButton(configuration: .plain())
+        button.addTarget(self, action: #selector(candidateTapped(_:)), for: .touchUpInside)
+        buttonPool.append(button)
+        return button
+    }
+
+    /// 取复用池中第 index 个分隔线，不足则新建一次（含内部约束）并入池。
+    private func dequeueSeparator(at index: Int) -> UIView {
+        if index < separatorPool.count { return separatorPool[index] }
+        let sep = UIView()
+        sep.backgroundColor = .separator
+        sep.translatesAutoresizingMaskIntoConstraints = false
+        sep.widthAnchor.constraint(equalToConstant: 0.5).isActive = true
+
+        let wrapper = UIView()
+        wrapper.translatesAutoresizingMaskIntoConstraints = false
+        wrapper.addSubview(sep)
+        NSLayoutConstraint.activate([
+            sep.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
+            sep.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
+            sep.heightAnchor.constraint(equalTo: wrapper.heightAnchor, multiplier: 0.45),
+            wrapper.widthAnchor.constraint(equalToConstant: 1),
+        ])
+        separatorPool.append(wrapper)
+        return wrapper
+    }
+
+    /// 逐键只更新按钮内容与序号（视觉与原实现一致）。
+    private func configureButton(_ button: UIButton, index: Int, text: String) {
         let isFirst = index == 0
         var config = UIButton.Configuration.plain()
         config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
@@ -133,10 +163,8 @@ class CandidateBarView: UIView {
         attr.append(NSAttributedString(string: text, attributes: textAttr))
         config.attributedTitle = AttributedString(attr)
 
-        let button = UIButton(configuration: config)
+        button.configuration = config
         button.tag = index
-        button.addTarget(self, action: #selector(candidateTapped(_:)), for: .touchUpInside)
-        return button
     }
 
     func clear() {

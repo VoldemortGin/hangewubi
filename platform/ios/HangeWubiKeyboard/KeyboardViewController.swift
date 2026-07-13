@@ -9,6 +9,18 @@ class KeyboardViewController: UIInputViewController {
     private var engineInitialized = false
     private var isChinese = true  // true = Chinese mode, false = English pass-through
 
+    // 组合收尾：区分「键盘自身编辑引发的 textWillChange」与「输入目标真正切换」
+    private var isSelfEditing = false
+    private var selfEditGeneration = 0
+
+    // 用户词典落盘（引擎/词典为进程内全局单例，用类型级共享状态串行落盘，
+    // 参照 macOS InputController 的持久化策略）
+    private static var userDictLoaded = false
+    private static var userDictDirty = false
+    private static var lastSaveTime = Date.distantPast
+    private static let saveThrottleInterval: TimeInterval = 10
+    private static let saveQueue = DispatchQueue(label: "com.hangewubi.keyboard.userdict.save")
+
     // MARK: - Lifecycle
 
     override func viewDidLoad() {
@@ -34,6 +46,23 @@ class KeyboardViewController: UIInputViewController {
     override func textDidChange(_ textInput: UITextInput?) {
         super.textDidChange(textInput)
         updateReturnKey()
+    }
+
+    override func textWillChange(_ textInput: UITextInput?) {
+        super.textWillChange(textInput)
+        // 输入目标即将切换（点了另一个输入框/移动光标等）：收尾在途组合，
+        // 避免残码被系统定稿成字面文本、引擎 buffer 串场到下一个目标。
+        // 键盘自身的 insertText/setMarkedText 也会引发此回调，用 isSelfEditing 屏蔽，
+        // 以免误伤正常打字路径。
+        if isSelfEditing { return }
+        finishComposition()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        // 键盘即将隐藏（切键盘/退到后台/收起）：收尾在途组合并强制落盘用户词典。
+        finishComposition()
+        saveUserDictIfNeeded(force: true)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -87,6 +116,9 @@ class KeyboardViewController: UIInputViewController {
             let hasPinyin = pinyinPath != nil
             NSLog("[HangeWubi] Engine initialized, loaded \(count) wubi entries, pinyin=\(hasPinyin)")
             engineInitialized = true
+            // 加载用户词典（自造词/调频持久化）。引擎为进程内全局单例，只在首个实例加载一次，
+            // 避免后续实例用磁盘旧内容覆盖内存中尚未落盘的自学习数据。
+            loadUserDictOnce()
             applySharedSettings(hasPinyin: hasPinyin)
         }
     }
@@ -200,7 +232,12 @@ class KeyboardViewController: UIInputViewController {
 
     // MARK: - Engine Interaction
 
-    private func processResult(_ result: FfiResult) {
+    /// 处理引擎返回结果。`fallbackInsert` 为引擎返回 UNHANDLED 时的兜底字符：
+    /// 数字/标点等在空 buffer 或未命中映射时引擎会返回 Unhandled，若不兜底会被静默吞掉。
+    /// 返回值：当路径刷新了候选（COMMIT/UPDATE）时携带最新 buffer 与候选数，供上层复用，
+    /// 避免重复的 FFI 往返（见 autoCommitIfBufferFull）。
+    @discardableResult
+    private func processResult(_ result: FfiResult, fallbackInsert: String? = nil) -> (buffer: String, count: Int)? {
         switch result.action {
         case FFI_ACTION_COMMIT:
             if let text = result.text {
@@ -208,13 +245,16 @@ class KeyboardViewController: UIInputViewController {
                 textDocumentProxy.insertText(str)
                 ffi_free_string(text)
             }
-            refreshCandidates()
+            // 发生了实际提交/选字，引擎可能已更新自造词/词频，标记待落盘
+            markUserDictDirty()
+            saveUserDictIfNeeded(force: false)
+            return refreshCandidates()
 
         case FFI_ACTION_UPDATE_CANDIDATES:
             if let text = result.text {
                 ffi_free_string(text)
             }
-            refreshCandidates()
+            return refreshCandidates()
 
         case FFI_ACTION_RESET:
             if let text = result.text {
@@ -222,20 +262,27 @@ class KeyboardViewController: UIInputViewController {
             }
             textDocumentProxy.unmarkText()
             candidateBar.clear()
+            return nil
 
         case FFI_ACTION_UNHANDLED:
             if let text = result.text {
                 ffi_free_string(text)
             }
+            if let fallback = fallbackInsert {
+                textDocumentProxy.insertText(fallback)
+            }
+            return nil
 
         default:
             if let text = result.text {
                 ffi_free_string(text)
             }
+            return nil
         }
     }
 
-    private func refreshCandidates() {
+    @discardableResult
+    private func refreshCandidates() -> (buffer: String, count: Int) {
         // Get current buffer
         let bufferPtr = ffi_get_buffer()
         let buffer = bufferPtr.flatMap { String(cString: $0) } ?? ""
@@ -266,18 +313,15 @@ class KeyboardViewController: UIInputViewController {
         candidateBar.updatePreedit("")
         candidateBar.updateCandidates(candidates)
         candidateBar.isHidden = candidates.isEmpty
+        return (buffer: buffer, count: candidates.count)
     }
 
     /// 满 4 码自动上屏：模仿 iOS 系统五笔行为。
-    /// 如果引擎已自动 commit（unique 4 码），buffer 已为空，无操作；
-    /// 否则提交首选候选。
-    private func autoCommitIfBufferFull() {
-        let buffer = getBuffer()
-        guard buffer.count >= 4 else { return }
-        let list = ffi_get_candidates()
-        let hasCandidate = list.count > 0
-        ffi_free_candidate_list(list)
-        guard hasCandidate else { return }
+    /// 如果引擎已自动 commit（unique 4 码），buffer 已为空，无操作；否则提交首选候选。
+    /// buffer/count 复用字母键路径已从引擎取回的值，避免重复 FFI 往返（I-L1）。
+    private func autoCommitIfBufferFull(buffer: String?, count: Int?) {
+        guard let buffer = buffer, let count = count else { return }
+        guard buffer.count >= 4, count > 0 else { return }
         let result = ffi_handle_number(1)
         processResult(result)
     }
@@ -288,6 +332,103 @@ class KeyboardViewController: UIInputViewController {
         if let p = ptr { ffi_free_string(p) }
         return s
     }
+
+    /// 取当前候选文本列表（供强制收尾提交首选候选用）。
+    private func currentCandidateStrings() -> [String] {
+        let list = ffi_get_candidates()
+        var result: [String] = []
+        if list.count > 0, let items = list.candidates {
+            for i in 0..<list.count {
+                result.append(items[i].text.flatMap { String(cString: $0) } ?? "")
+            }
+        }
+        ffi_free_candidate_list(list)
+        return result
+    }
+
+    // MARK: - Composition Finalize
+
+    /// 组合被强制结束时的统一收尾（viewWillDisappear / textWillChange 共用）。
+    /// 有候选 → 提交首选候选；无候选 → 清空；随后重置引擎，绝不让编码字母原文（如 WGKQ）
+    /// 被系统定稿进文档。
+    ///
+    /// marked text 提交顺序：iOS 上 `unmarkText()` 会把「当前的 marked text」定稿为真实文本，
+    /// 而此刻 marked text 是原始编码（WGKQ），直接 unmark 就会把字母漏进文档。
+    /// 正确顺序是先 `setMarkedText(候选)` 用候选替换 marked 区域，再 `unmarkText()` 定稿，
+    /// 这样落进文档的是候选词而非编码。无候选时 `setMarkedText("")` + `unmarkText()` 清干净。
+    private func finishComposition() {
+        guard engineInitialized else { return }
+        let buffer = getBuffer()
+        // 无在途组合：直接返回，正常打字/空闲路径无副作用。
+        guard !buffer.isEmpty else { return }
+
+        if let first = currentCandidateStrings().first {
+            textDocumentProxy.setMarkedText(first, selectedRange: NSRange(location: first.count, length: 0))
+            textDocumentProxy.unmarkText()
+            markUserDictDirty()
+        } else {
+            textDocumentProxy.setMarkedText("", selectedRange: NSRange(location: 0, length: 0))
+            textDocumentProxy.unmarkText()
+        }
+        _ = ffi_handle_escape()
+        candidateBar.clear()
+    }
+
+    /// 标记接下来对 textDocumentProxy 的改动来自键盘自身，使随之而来的 textWillChange
+    /// 不被误判为「输入目标切换」。proxy 改动跨进程异步回传，故标志位延到下一 runloop
+    /// 复位，以覆盖同周期内到达的回调；用 generation 保证仅最后一次编辑负责复位。
+    private func markSelfEditing() {
+        isSelfEditing = true
+        selfEditGeneration += 1
+        let gen = selfEditGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.selfEditGeneration == gen else { return }
+            self.isSelfEditing = false
+        }
+    }
+
+    // MARK: - User Dictionary Persistence
+
+    /// 用户词典持久化路径：App Group 容器 /晗戈五笔/user_dict.json（键盘扩展沙箱内可写、
+    /// 跨进程被杀后仍在，且与主 App 共享）。App Group 未配置时退化到扩展自身容器。
+    private var userDictPath: String {
+        let fm = FileManager.default
+        let baseDir = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.hangewubi.app")
+            ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        let dir = baseDir.appendingPathComponent("晗戈五笔", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("user_dict.json").path
+    }
+
+    private func loadUserDictOnce() {
+        guard !KeyboardViewController.userDictLoaded else { return }
+        KeyboardViewController.userDictLoaded = true
+        let path = userDictPath
+        let ok = path.withCString { ffi_load_user_dict($0) }
+        NSLog("[HangeWubi] load user dict: \(path) -> \(ok)")
+    }
+
+    private func markUserDictDirty() {
+        KeyboardViewController.userDictDirty = true
+    }
+
+    /// 按需落盘：仅在有实际改动时保存，主线程节流，写盘放后台串行队列。
+    /// force=true 跳过节流（失焦/隐藏兜底）。ffi_save_user_dict 内部有全局锁，后台调用安全。
+    private func saveUserDictIfNeeded(force: Bool) {
+        guard KeyboardViewController.userDictDirty else { return }
+        let now = Date()
+        if !force && now.timeIntervalSince(KeyboardViewController.lastSaveTime) < KeyboardViewController.saveThrottleInterval {
+            return
+        }
+        KeyboardViewController.userDictDirty = false
+        KeyboardViewController.lastSaveTime = now
+        let path = userDictPath
+        KeyboardViewController.saveQueue.async {
+            let ok = path.withCString { ffi_save_user_dict($0) }
+            NSLog("[HangeWubi] save user dict: \(path) -> \(ok)")
+        }
+    }
 }
 
 // MARK: - KeyboardViewDelegate
@@ -295,6 +436,7 @@ class KeyboardViewController: UIInputViewController {
 extension KeyboardViewController: KeyboardViewDelegate {
 
     func keyboardView(_ view: KeyboardView, didTapKey key: String) {
+        markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText(key)
             return
@@ -312,17 +454,32 @@ extension KeyboardViewController: KeyboardViewDelegate {
             if ch.isLetter {
                 let lower = ch.lowercased()
                 let result = ffi_handle_key(Int8(bitPattern: Character(lower).asciiValue!))
-                processResult(result)
-                // 五笔最多 4 码：满 4 码且仍有候选时，自动选择第一候选上屏
-                autoCommitIfBufferFull()
+                let info = processResult(result)
+                // 五笔最多 4 码：满 4 码且仍有候选时，自动选择第一候选上屏（复用 info 避免重复 FFI）
+                autoCommitIfBufferFull(buffer: info?.buffer, count: info?.count)
             } else if ch.isNumber {
-                let num = UInt8(ch.asciiValue! - Character("0").asciiValue!)
-                let result = ffi_handle_number(num)
-                processResult(result)
+                // 数字身兼两职：空 buffer 时是字面数字（走系统），非空时是候选选择。
+                // 空 buffer 直接 insertText 才能打出 0-9（引擎对空 buffer / num==0 会返回 Unhandled）。
+                if getBuffer().isEmpty {
+                    textDocumentProxy.insertText(key)
+                } else {
+                    let num = UInt8(ch.asciiValue! - Character("0").asciiValue!)
+                    let result = ffi_handle_number(num)
+                    // 非法候选序号（如 0）引擎返回 Unhandled 时兜底为字面字符
+                    processResult(result, fallbackInsert: key)
+                }
             } else if ch.isPunctuation || ",.?!:;@#$%^&*-_+=~\\\"'()[]{}<>/".contains(ch) {
+                // 标点始终交引擎（做中文全角转换 / 提交在途码），仅当引擎未命中映射
+                // （如 `/`）返回 Unhandled 时兜底为字面字符，避免被静默吞掉。
                 let result = ffi_handle_punctuation(Int8(bitPattern: ch.asciiValue ?? 0))
-                processResult(result)
+                processResult(result, fallbackInsert: key)
             } else {
+                // 其它未识别单字符：先提交在途码再插入，避免残留组合串
+                let buffer = getBuffer()
+                if !buffer.isEmpty {
+                    let result = ffi_handle_enter()
+                    processResult(result)
+                }
                 textDocumentProxy.insertText(key)
             }
         } else {
@@ -338,6 +495,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapBackspace(_ view: KeyboardView) {
+        markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.deleteBackward()
             return
@@ -353,6 +511,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapSpace(_ view: KeyboardView) {
+        markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText(" ")
             return
@@ -369,6 +528,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapReturn(_ view: KeyboardView) {
+        markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText("\n")
             return
@@ -388,6 +548,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapShift(_ view: KeyboardView) {
+        markSelfEditing()
         // Toggle Chinese/English mode
         if engineInitialized {
             // If there's buffer content, commit it first as raw text
@@ -415,6 +576,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
 extension KeyboardViewController: CandidateBarViewDelegate {
 
     func candidateBarView(_ view: CandidateBarView, didSelectCandidateAt index: Int) {
+        markSelfEditing()
         guard engineInitialized else { return }
         // ffi_handle_number uses 1-based indexing for candidate selection
         let num = UInt8(index + 1)
