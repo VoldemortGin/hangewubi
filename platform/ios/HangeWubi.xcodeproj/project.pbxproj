@@ -194,7 +194,6 @@
 				};
 			};
 			buildConfigurationList = EB96DB6D4CBA60BCB6557E62 /* Build configuration list for PBXProject "HangeWubi" */;
-			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -204,6 +203,7 @@
 			mainGroup = B5263ABEDF87FBD0A9642E9B;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
+			productRefGroup = F2C6ECD84C4DDDBDE2983D09 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
