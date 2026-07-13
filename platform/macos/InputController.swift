@@ -4,9 +4,11 @@ import os.log
 
 private let logger = OSLog(subsystem: "com.hangewubi.inputmethod.HangeWubi", category: "InputController")
 
-private func debugLog(_ message: String) {
-    os_log("%{public}@", log: logger, type: .default, message)
+private func debugLog(_ message: @autoclosure () -> String) {
+    // release 下整段跳过，@autoclosure 保证实参插值字符串不被求值（消除热路径开销）
     #if DEBUG
+    let message = message()
+    os_log("%{public}@", log: logger, type: .default, message)
     // 同时写文件日志（仅 DEBUG 构建，避免 release 热路径同步写盘）
     let logFile = "/tmp/hangewubi.log"
     let timestamp = ISO8601DateFormatter().string(from: Date())
@@ -710,24 +712,11 @@ class CandidateWindow: NSPanel {
         if isVertical {
             // 纵向排列：编码在最上面，每个候选词占一行
             let candidateLineHeight = fontSize * 1.4
-            var maxWidth = codeLabel.frame.width
-
-            // 先计算最大宽度
-            for i in 0..<count {
-                let numStr = "\(i + 1). "
-                let testNum = NSTextField(labelWithString: numStr)
-                testNum.font = NSFont.monospacedDigitSystemFont(ofSize: fontSize, weight: .regular)
-                testNum.sizeToFit()
-                let testText = NSTextField(labelWithString: candidates[i])
-                testText.font = NSFont.systemFont(ofSize: fontSize)
-                testText.sizeToFit()
-                let lineWidth = testNum.frame.width + testText.frame.width
-                maxWidth = max(maxWidth, lineWidth)
-            }
-
-            let totalWidth = maxWidth + padding * 2
             let codeLineHeight = codeLabel.frame.height
             let totalHeight = padding + codeLineHeight + 4 + candidateLineHeight * CGFloat(count) + padding
+
+            // 一遍排版即顺带测量最大宽度，省去单独的预扫描测量遍（每键少建 2×count 个临时 NSTextField）
+            var maxWidth = codeLabel.frame.width
 
             // 从底部开始排列候选词
             for i in 0..<count {
@@ -755,7 +744,11 @@ class CandidateWindow: NSPanel {
                     containerView.addSubview(highlightBlock(for: textLabel, color: highlightColor))
                 }
                 containerView.addSubview(textLabel)
+
+                maxWidth = max(maxWidth, numLabel.frame.width + textLabel.frame.width)
             }
+
+            let totalWidth = maxWidth + padding * 2
 
             // 编码放在最上面
             let codeY = padding + candidateLineHeight * CGFloat(count) + 4
@@ -930,6 +923,15 @@ class InputController: IMKInputController {
     // Shift toggle tracking
     private var shiftPressed = false
 
+    // 用户词典落盘节流（引擎/词典为全局单例，故用类型级共享状态串行落盘）
+    private static let saveQueue = DispatchQueue(label: "com.hangewubi.inputmethod.userdict.save")
+    private static var userDictDirty = false
+    private static var lastSaveTime = Date.distantPast
+    private static let saveThrottleInterval: TimeInterval = 10
+
+    // 用户词典只在进程内首个控制器实例加载一次，避免后续实例覆盖内存中的自学习数据
+    private static var userDictLoaded = false
+
     /// 用户词典持久化路径：~/Library/Application Support/晗戈五笔/user_dict.json
     /// load 与 save 共用此路径；访问时确保目录存在。
     private var userDictPath: String {
@@ -957,10 +959,14 @@ class InputController: IMKInputController {
             debugLog("已加载 \(count) 条词条")
         }
 
-        // 加载用户词典（自造词/调频持久化）
-        let userDict = userDictPath
-        let loaded = userDict.withCString { ffi_load_user_dict($0) }
-        debugLog("加载用户词典: \(userDict) -> \(loaded)")
+        // 加载用户词典（自造词/调频持久化）。引擎是进程内全局单例，IMK 会创建多个
+        // 控制器实例；只在首个实例加载一次，避免后续实例用磁盘旧内容覆盖内存中尚未落盘的自学习数据。
+        if !InputController.userDictLoaded {
+            InputController.userDictLoaded = true
+            let userDict = userDictPath
+            let loaded = userDict.withCString { ffi_load_user_dict($0) }
+            debugLog("加载用户词典: \(userDict) -> \(loaded)")
+        }
 
         syncConfigToEngine()
 
@@ -968,8 +974,55 @@ class InputController: IMKInputController {
                                                name: .hangeWubiConfigChanged, object: nil)
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: .hangeWubiConfigChanged, object: nil)
+    }
+
     @objc private func handleConfigChanged() {
         syncConfigToEngine()
+    }
+
+    // MARK: - Composition Finalize / User Dict Persistence
+
+    /// 组合被强制结束时的统一收尾（commitComposition / deactivate 共用）：
+    /// 有候选则把当前页首选候选上屏，无候选则丢弃；随后清空引擎与预编辑。
+    /// client 可能为 nil 或已不可写（如失焦后），此时判空兜底、直接丢弃编码。
+    /// 绝不让编码字母原文进入文档。
+    @discardableResult
+    private func finishComposition(client: IMKTextInput?) -> Bool {
+        let candidates = getCandidateStrings()
+        var committed = false
+        if let first = candidates.first, let client = client {
+            client.insertText(first, replacementRange: NSRange(location: NSNotFound, length: 0))
+            committed = true
+        }
+        let _ = ffi_handle_escape()
+        client?.setMarkedText("", selectionRange: NSRange(location: 0, length: 0),
+                              replacementRange: NSRange(location: NSNotFound, length: 0))
+        hideCandidates()
+        return committed
+    }
+
+    /// 标记用户词典有未落盘的实际改动（在真正提交/选字后调用）。
+    private func markUserDictDirty() {
+        InputController.userDictDirty = true
+    }
+
+    /// 按需落盘用户词典：仅在有实际改动时保存，主线程节流，写盘放后台串行队列。
+    /// force=true 时跳过节流（如失焦/退出兜底）。ffi_save_user_dict 内部有全局锁，后台调用安全。
+    private func saveUserDictIfNeeded(force: Bool) {
+        guard InputController.userDictDirty else { return }
+        let now = Date()
+        if !force && now.timeIntervalSince(InputController.lastSaveTime) < InputController.saveThrottleInterval {
+            return
+        }
+        InputController.userDictDirty = false
+        InputController.lastSaveTime = now
+        let path = userDictPath
+        InputController.saveQueue.async {
+            let saved = path.withCString { ffi_save_user_dict($0) }
+            debugLog("后台保存用户词典: \(path) -> \(saved)")
+        }
     }
 
     /// Sync all relevant settings to the Rust engine config
@@ -1025,17 +1078,18 @@ class InputController: IMKInputController {
 
     override func deactivateServer(_ sender: Any!) {
         debugLog("deactivateServer")
-        let _ = ffi_handle_escape()
-        if let client = sender as? IMKTextInput {
-            client.setMarkedText("", selectionRange: NSRange(location: 0, length: 0),
-                               replacementRange: NSRange(location: NSNotFound, length: 0))
-        }
-        hideCandidates()
+        // 与 commitComposition 同一收尾：有候选提交首选、无候选清空，绝不残留编码字母
+        finishComposition(client: sender as? IMKTextInput)
+        // 落盘用户词典（自造词/调频持久化）：仅在有实际改动时保存，后台串行写盘不阻塞主线程
+        saveUserDictIfNeeded(force: true)
+    }
 
-        // 落盘用户词典（自造词/调频持久化）
-        let userDict = userDictPath
-        let saved = userDict.withCString { ffi_save_user_dict($0) }
-        debugLog("保存用户词典: \(userDict) -> \(saved)")
+    /// IMK 在组合中途被强制提交时调用（如打字中途鼠标点同 App 内别处）。
+    /// 默认实现会把预编辑的编码字母原样插入文档，这里重写以走统一收尾逻辑。
+    override func commitComposition(_ sender: Any!) {
+        debugLog("commitComposition")
+        finishComposition(client: sender as? IMKTextInput)
+        saveUserDictIfNeeded(force: false)
     }
 
     // MARK: - Event Handling
@@ -1066,8 +1120,23 @@ class InputController: IMKInputController {
         let chars = event.characters ?? ""
         debugLog("handle: keyCode=\(keyCode) chars='\(chars)' type=\(event.type.rawValue)")
 
-        // 有 Cmd/Ctrl/Option 修饰键的不处理
-        if modifiers.contains(.command) || modifiers.contains(.control) || modifiers.contains(.option) {
+        // 有修饰键的按键不作为编码输入处理。
+        // Cmd/Ctrl 属应用快捷键：若组合串在途，先丢弃编码与预编辑再放行，
+        // 避免快捷键后继续打字接在旧码后面。
+        if modifiers.contains(.command) || modifiers.contains(.control) {
+            let bufPtr = ffi_get_buffer()
+            let buf = bufPtr.flatMap { String(cString: $0) } ?? ""
+            if let ptr = bufPtr { ffi_free_string(ptr) }
+            if !buf.isEmpty {
+                let _ = ffi_handle_escape()
+                client.setMarkedText("", selectionRange: NSRange(location: 0, length: 0),
+                                   replacementRange: NSRange(location: NSNotFound, length: 0))
+                hideCandidates()
+            }
+            return false
+        }
+        // Option 可能用于合法字符输入（如 Option+字母），保持透传、不触碰组合串
+        if modifiers.contains(.option) {
             return false
         }
 
@@ -1093,9 +1162,7 @@ class InputController: IMKInputController {
                 } else {
                     // Treat as punctuation when disabled
                     let mode = ffi_get_mode()
-                    let bufPtr = ffi_get_buffer()
-                    let buf = bufPtr.flatMap { String(cString: $0) } ?? ""
-                    if let ptr = bufPtr { ffi_free_string(ptr) }
+                    let buf = currentBuffer()
                     if !buf.isEmpty && mode != 1 {
                         // In Chinese mode with buffer, pass as punctuation
                         result = ffi_handle_punctuation(Int8(bitPattern: ch.asciiValue!))
@@ -1106,9 +1173,7 @@ class InputController: IMKInputController {
             case "'":
                 // 单引号：编码非空时选第三候选，否则作为标点
                 let mode = ffi_get_mode()
-                let bufPtr = ffi_get_buffer()
-                let buf = bufPtr.flatMap { String(cString: $0) } ?? ""
-                if let ptr = bufPtr { ffi_free_string(ptr) }
+                let buf = currentBuffer()
                 if !buf.isEmpty && mode != 1 && settings.quoteSelectThird {
                     result = ffi_handle_quote()
                 } else if !buf.isEmpty && mode != 1 {
@@ -1119,20 +1184,14 @@ class InputController: IMKInputController {
                 }
             case "=", "+":
                 // 翻页下一页：编码非空时翻页，否则放行
-                let bufPtr2 = ffi_get_buffer()
-                let buf2 = bufPtr2.flatMap { String(cString: $0) } ?? ""
-                if let ptr = bufPtr2 { ffi_free_string(ptr) }
-                if !buf2.isEmpty && settings.plusEqualsNextPage {
+                if !currentBuffer().isEmpty && settings.plusEqualsNextPage {
                     result = ffi_next_page()
                 } else {
                     return false
                 }
             case "-":
                 // 翻页上一页：编码非空时翻页，否则放行
-                let bufPtr3 = ffi_get_buffer()
-                let buf3 = bufPtr3.flatMap { String(cString: $0) } ?? ""
-                if let ptr = bufPtr3 { ffi_free_string(ptr) }
-                if !buf3.isEmpty && settings.minusPrevPage {
+                if !currentBuffer().isEmpty && settings.minusPrevPage {
                     result = ffi_prev_page()
                 } else {
                     return false
@@ -1163,6 +1222,8 @@ class InputController: IMKInputController {
                 client.insertText(str, replacementRange: NSRange(location: NSNotFound, length: 0))
                 ffi_free_string(text)
             }
+            // 发生了实际提交/选字，引擎可能已更新自造词/词频，标记待落盘
+            markUserDictDirty()
             updateMarkedText(client: client)
             return true
 
@@ -1247,10 +1308,16 @@ class InputController: IMKInputController {
 
     // MARK: - Candidate Management
 
+    /// 取当前编码缓冲区并释放 FFI 分配的字符串，返回 Swift 串（空串表示无编码）。
+    /// 统一 ffi_get_buffer + free 的往返，避免各调用点重复分配/释放样板。
+    private func currentBuffer() -> String {
+        let ptr = ffi_get_buffer()
+        defer { if let ptr = ptr { ffi_free_string(ptr) } }
+        return ptr.flatMap { String(cString: $0) } ?? ""
+    }
+
     private func updateMarkedText(client: IMKTextInput) {
-        let bufferPtr = ffi_get_buffer()
-        let buffer = bufferPtr.flatMap { String(cString: $0) } ?? ""
-        if let ptr = bufferPtr { ffi_free_string(ptr) }
+        let buffer = currentBuffer()
 
         if buffer.isEmpty {
             client.setMarkedText("", selectionRange: NSRange(location: 0, length: 0),
@@ -1273,15 +1340,11 @@ class InputController: IMKInputController {
 
                 CandidateWindow.shared.show(candidates: candidateStrings, code: buffer, near: lineHeightRect)
             }
-
-            // Also try IMKCandidates as fallback
-            sharedCandidates?.update()
         }
     }
 
     private func hideCandidates() {
         CandidateWindow.shared.hide()
-        sharedCandidates?.hide()
     }
 
     private func getCandidateStrings() -> [String] {
@@ -1294,23 +1357,6 @@ class InputController: IMKInputController {
                 if let text = candidate.text {
                     // 只保留汉字本身；编码已在候选窗顶部 code 行单独显示，序号由候选窗绘制
                     result.append(String(cString: text))
-                }
-            }
-        }
-        ffi_free_candidate_list(list)
-
-        return result
-    }
-
-    override func candidates(_ sender: Any!) -> [Any]! {
-        let list = ffi_get_candidates()
-        var result: [String] = []
-
-        if list.count > 0, let candidates = list.candidates {
-            for i in 0..<list.count {
-                let candidate = candidates[i]
-                if let text = candidate.text {
-                    result.append("\(i + 1). \(String(cString: text))")
                 }
             }
         }

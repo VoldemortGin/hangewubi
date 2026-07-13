@@ -13,10 +13,6 @@ guard let server = IMKServer(name: connectionName, bundleIdentifier: bundleId) e
 
 NSLog("[晗戈五笔] 输入法服务已启动: \(connectionName)")
 
-// 创建候选词窗口（全局共享）
-let sharedCandidates = IMKCandidates(server: server, panelType: kIMKSingleColumnScrollingCandidatePanel)
-NSLog("[晗戈五笔] 候选词窗口已创建")
-
 // 验证 InputController 类是否可被 ObjC runtime 找到
 if let cls = NSClassFromString("InputController") {
     NSLog("[晗戈五笔] 找到 InputController 类: \(cls)")
