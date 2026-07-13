@@ -37,6 +37,7 @@ class CandidateView @JvmOverloads constructor(
     private val firstCandBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val separatorPaint = Paint().apply { strokeWidth = 1f }
     private val dividerPaint = Paint().apply { strokeWidth = 1f }
+    private val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
 
     // 翻页按钮
     private var prevPageRect = RectF()
@@ -53,7 +54,7 @@ class CandidateView @JvmOverloads constructor(
     fun update(buffer: String, newCandidates: Array<EngineBridge.Candidate>) {
         preedit = buffer
         candidates = newCandidates
-        requestLayout()
+        // 高度固定，无需重新布局，仅重绘
         invalidate()
     }
 
@@ -72,6 +73,7 @@ class CandidateView @JvmOverloads constructor(
         firstCandBgPaint.color = ContextCompat.getColor(context, R.color.candidate_highlight)
         separatorPaint.color = ContextCompat.getColor(context, R.color.candidate_separator)
         dividerPaint.color = ContextCompat.getColor(context, R.color.candidate_divider)
+        arrowPaint.color = ContextCompat.getColor(context, R.color.key_sublabel)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -110,12 +112,7 @@ class CandidateView @JvmOverloads constructor(
         }
 
         val navWidth = density * 40f
-        val arrowSize = density * 18f
-        val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = ContextCompat.getColor(context, R.color.key_sublabel)
-            this.textSize = arrowSize
-            textAlign = Paint.Align.CENTER
-        }
+        arrowPaint.textSize = density * 18f
         val arrowY = h / 2f - (arrowPaint.descent() + arrowPaint.ascent()) / 2f
 
         prevPageRect.set(w - navWidth * 2, 0f, w - navWidth, h)

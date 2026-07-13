@@ -28,7 +28,10 @@ static jobject make_engine_result(JNIEnv *env, FfiResult result) {
 static jobject make_candidate(JNIEnv *env, const FfiCandidate *c) {
     jstring text = (*env)->NewStringUTF(env, c->text);
     jstring code = (*env)->NewStringUTF(env, c->code);
-    return (*env)->NewObject(env, g_candidateClass, g_candidateCtor, text, code);
+    jobject obj = (*env)->NewObject(env, g_candidateClass, g_candidateCtor, text, code);
+    (*env)->DeleteLocalRef(env, text);
+    (*env)->DeleteLocalRef(env, code);
+    return obj;
 }
 
 // Called when the native library is loaded
@@ -86,8 +89,8 @@ JNIEXPORT jlong JNICALL
 Java_com_hangewubi_ime_EngineBridge_nativeInitWithPinyin(JNIEnv *env, jobject obj,
         jstring dictPath, jstring pinyinDictPath) {
     const char *path = (*env)->GetStringUTFChars(env, dictPath, NULL);
-    const char *pinyinPath = (*env)->GetStringUTFChars(env, pinyinDictPath, NULL);
     if (path == NULL) return -1;
+    const char *pinyinPath = (*env)->GetStringUTFChars(env, pinyinDictPath, NULL);
 
     int64_t count = ffi_init_with_pinyin(path, pinyinPath);
     LOGI("ffi_init_with_pinyin(\"%s\", \"%s\") returned %lld", path,
@@ -226,6 +229,16 @@ Java_com_hangewubi_ime_EngineBridge_nativeSaveUserDict(JNIEnv *env, jobject obj,
     if (p == NULL) return JNI_FALSE;
 
     bool ok = ffi_save_user_dict(p);
+    (*env)->ReleaseStringUTFChars(env, path, p);
+    return ok ? JNI_TRUE : JNI_FALSE;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_hangewubi_ime_EngineBridge_nativeLoadUserDict(JNIEnv *env, jobject obj, jstring path) {
+    const char *p = (*env)->GetStringUTFChars(env, path, NULL);
+    if (p == NULL) return JNI_FALSE;
+
+    bool ok = ffi_load_user_dict(p);
     (*env)->ReleaseStringUTFChars(env, path, p);
     return ok ? JNI_TRUE : JNI_FALSE;
 }

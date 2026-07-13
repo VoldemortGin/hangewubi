@@ -46,4 +46,5 @@ class EngineBridge {
     )
     external fun nativeAddUserWord(code: String, text: String)
     external fun nativeSaveUserDict(path: String): Boolean
+    external fun nativeLoadUserDict(path: String): Boolean
 }

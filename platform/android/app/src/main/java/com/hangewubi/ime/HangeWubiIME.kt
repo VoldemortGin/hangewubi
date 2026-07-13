@@ -14,12 +14,21 @@ class HangeWubiIME : InputMethodService() {
 
     companion object {
         private const val TAG = "HangeWubiIME"
+        private const val USER_DICT_FILENAME = "user_dict.json"
+        private const val SAVE_THROTTLE_MS = 10_000L
+
+        // 引擎/用户词典是进程内全局单例，落盘状态用类级共享以串行化多实例
+        private val saveExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+        @Volatile private var userDictDirty = false
+        @Volatile private var lastSaveTime = 0L
+        private var userDictLoaded = false
     }
 
     val engine = EngineBridge()
     private var engineReady = false
     private var kbView: KeyboardView? = null
     private var candView: CandidateView? = null
+    private var lastMode = -1
 
     private val prefs: SharedPreferences
         get() = getSharedPreferences(SettingsKey.PREFS_NAME, Context.MODE_PRIVATE)
@@ -71,6 +80,7 @@ class HangeWubiIME : InputMethodService() {
                 engineReady = true
                 Log.i(TAG, "Engine initialized with $count wubi entries, pinyin=$pinyinDictLoaded")
                 applyConfig()
+                loadUserDictOnce()
             } else {
                 Log.e(TAG, "Engine init failed")
             }
@@ -111,6 +121,37 @@ class HangeWubiIME : InputMethodService() {
         Log.i(TAG, "Applied config: pinyinMixed=$pinyinEnabled haptic=$hapticEnabled cand=$candidateCount")
     }
 
+    private val userDictFile: File
+        get() = File(filesDir, USER_DICT_FILENAME)
+
+    // 用户词典只在进程内加载一次，避免后续实例用磁盘旧内容覆盖内存中尚未落盘的自学习数据
+    private fun loadUserDictOnce() {
+        if (userDictLoaded) return
+        userDictLoaded = true
+        val path = userDictFile.absolutePath
+        val loaded = engine.nativeLoadUserDict(path)
+        Log.i(TAG, "Loaded user dict: $path -> $loaded")
+    }
+
+    private fun markUserDictDirty() {
+        userDictDirty = true
+    }
+
+    // 按需落盘用户词典：仅在有实际改动时保存，主线程节流，写盘放后台串行队列。
+    // force=true 跳过节流（失焦/销毁兜底）。ffi_save_user_dict 内部有全局锁，后台调用安全。
+    private fun saveUserDictIfNeeded(force: Boolean) {
+        if (!engineReady || !userDictDirty) return
+        val now = System.currentTimeMillis()
+        if (!force && now - lastSaveTime < SAVE_THROTTLE_MS) return
+        userDictDirty = false
+        lastSaveTime = now
+        val path = userDictFile.absolutePath
+        saveExecutor.execute {
+            val ok = engine.nativeSaveUserDict(path)
+            Log.i(TAG, "Saved user dict: $path -> $ok")
+        }
+    }
+
     override fun onCreateInputView(): View {
         // 把候选栏和键盘组合到同一个容器里，不依赖系统的 setCandidatesViewShown
         val container = android.widget.LinearLayout(this).apply {
@@ -128,6 +169,8 @@ class HangeWubiIME : InputMethodService() {
         kbView = kb
         container.addView(kb)
 
+        // 键盘视图重建，强制下次 updateUI 刷新模式指示
+        lastMode = -1
         applyConfig()
         return container
     }
@@ -144,10 +187,33 @@ class HangeWubiIME : InputMethodService() {
 
     override fun onFinishInput() {
         super.onFinishInput()
+        // 失焦收尾：有候选提交首选、无候选清空预编辑，绝不让原码定稿进文档
+        finishComposition()
         if (engineReady) {
             engine.nativeHandleEscape()
         }
         showCandidates(false)
+        saveUserDictIfNeeded(force = true)
+    }
+
+    override fun onDestroy() {
+        saveUserDictIfNeeded(force = true)
+        super.onDestroy()
+    }
+
+    // 组合被强制结束时的统一收尾：有候选则把当前页首选上屏，无候选则丢弃在途编码。
+    // currentInputConnection 可能为 null（如已失焦），判空兜底。
+    private fun finishComposition() {
+        val ic = currentInputConnection ?: return
+        if (engineReady) {
+            val candidates = engine.nativeGetCandidates()
+            if (candidates.isNotEmpty()) {
+                ic.commitText(candidates[0].text, 1)
+                return
+            }
+        }
+        ic.setComposingText("", 1)
+        ic.finishComposingText()
     }
 
     fun onKeyPress(keyCode: Int) {
@@ -184,7 +250,7 @@ class HangeWubiIME : InputMethodService() {
             }
         } ?: return
 
-        processResult(result)
+        processResult(result) { handleUnhandledKey(keyCode) }
     }
 
     fun onPunctuation(ch: Char) {
@@ -192,7 +258,9 @@ class HangeWubiIME : InputMethodService() {
             currentInputConnection?.commitText(ch.toString(), 1)
             return
         }
-        processResult(engine.nativeHandlePunctuation(ch.code.toByte()))
+        processResult(engine.nativeHandlePunctuation(ch.code.toByte())) {
+            currentInputConnection?.commitText(ch.toString(), 1)
+        }
     }
 
     fun onCandidateSelected(index: Int) {
@@ -222,26 +290,64 @@ class HangeWubiIME : InputMethodService() {
 
     fun getMode(): Int = if (engineReady) engine.nativeGetMode() else 1
 
-    private fun processResult(result: EngineBridge.EngineResult) {
+    private fun processResult(
+        result: EngineBridge.EngineResult,
+        onUnhandled: (() -> Unit)? = null
+    ) {
         val ic = currentInputConnection ?: return
         when (result.action) {
             EngineBridge.EngineResult.ACTION_COMMIT -> {
-                ic.finishComposingText()
+                // commitText 语义会自动替换当前 composing region，无需先 finishComposingText
                 if (!result.text.isNullOrEmpty()) {
                     ic.commitText(result.text, 1)
                 }
+                // 发生了实际提交/选字，引擎可能已更新自造词/词频，标记待落盘
+                markUserDictDirty()
                 updateUI()
+                saveUserDictIfNeeded(force = false)
             }
             EngineBridge.EngineResult.ACTION_UPDATE -> {
                 updateUI()
             }
             EngineBridge.EngineResult.ACTION_RESET -> {
-                ic.finishComposingText()
+                // 清空在途编码（丢弃，不是定稿）
+                ic.setComposingText("", 1)
                 updateUI()
             }
             EngineBridge.EngineResult.ACTION_UNHANDLED -> {
-                // 透传到应用
+                // 引擎未消费该键，宿主执行默认动作（退格/回车/字符等）
+                onUnhandled?.invoke()
             }
+        }
+    }
+
+    // 软键盘的所有按键都经此路径，引擎未处理时按键类型做兜底
+    private fun handleUnhandledKey(keyCode: Int) {
+        val ic = currentInputConnection ?: return
+        when (keyCode) {
+            KeyEvent.KEYCODE_DEL -> sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+            KeyEvent.KEYCODE_ENTER -> handleUnhandledEnter(ic)
+            KeyEvent.KEYCODE_SPACE -> ic.commitText(" ", 1)
+            in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9 -> {
+                ic.commitText(('0' + (keyCode - KeyEvent.KEYCODE_0)).toString(), 1)
+            }
+            in KeyEvent.KEYCODE_A..KeyEvent.KEYCODE_Z -> {
+                ic.commitText(('a' + (keyCode - KeyEvent.KEYCODE_A)).toString(), 1)
+            }
+            else -> keyCodeToChar(keyCode)?.let { ic.commitText(it.toString(), 1) }
+        }
+    }
+
+    private fun handleUnhandledEnter(ic: android.view.inputmethod.InputConnection) {
+        val editorInfo = currentInputEditorInfo
+        val imeOptions = editorInfo?.imeOptions ?: 0
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        val noAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+        if (action != EditorInfo.IME_ACTION_NONE && !noAction) {
+            ic.performEditorAction(action)
+        } else {
+            // 默认换行：发送真实按键事件，兼容多行输入框
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
     }
 
@@ -255,6 +361,8 @@ class HangeWubiIME : InputMethodService() {
         val candidates = engine.nativeGetCandidates()
 
         if (buffer.isEmpty() && candidates.isEmpty()) {
+            // 先清空在途预编辑内容再结束组合，避免残留原码被定稿进文档
+            ic.setComposingText("", 1)
             ic.finishComposingText()
             showCandidates(false)
         } else {
@@ -263,7 +371,13 @@ class HangeWubiIME : InputMethodService() {
         }
 
         candView?.update(buffer, candidates)
-        kbView?.updateModeIndicator(engine.nativeGetMode())
+
+        // 模式只在切换/临时英文回落时才变，缓存上次值避免每键 invalidate 整个键盘
+        val mode = engine.nativeGetMode()
+        if (mode != lastMode) {
+            lastMode = mode
+            kbView?.updateModeIndicator(mode)
+        }
     }
 
     private fun keyCodeToChar(keyCode: Int): Char? {
