@@ -4,6 +4,31 @@ use crate::punctuation::PunctuationConverter;
 use crate::user_dict::UserDict;
 use std::path::Path;
 
+// ==================== 排序权重层级（编译期固化）====================
+// 三层从低到高：码表词频(≤MAX_DICT_WEIGHT) < 精确匹配加成 < 用户词典加成。
+// 换码表时超过 MAX_DICT_WEIGHT 的原始权重会在 dict.rs 加载时被钳制到上限，
+// 保证下方 const 断言的层级关系恒成立，"精确匹配优先 / 用户词典优先"不被静默破坏。
+
+/// 码表候选权重上限：dict.rs 加载时把超过此值的权重钳制到此（见 `DictEngine::load_from_str`）。
+/// `pub(crate)`：仅供 crate 内部固化层级，不对外导出（避免 cbindgen 泄漏进 C 契约头）。
+pub(crate) const MAX_DICT_WEIGHT: u32 = 4096;
+/// 精确匹配（编码长度 == 输入长度）权重加成。
+const EXACT_MATCH_BOOST: u32 = 5000;
+/// 拼音精确匹配加成：低于五笔精确加成，属码表层级内的相对提升，不构成独立层级。
+const PINYIN_EXACT_BOOST: u32 = 1000;
+/// 用户词典权重加成：叠加在用户词条原始权重（≤ `user_dict::WEIGHT_CAP`）之上，
+/// 使用户候选（最低 `USER_DICT_BOOST` + 0）恒排在任何码表候选之前。
+const USER_DICT_BOOST: u32 = 50000;
+
+// 层级固化：编译期钉死"用户词典 > 精确匹配 > 码表词频"。
+// ① 精确加成必须高于任何码表词频（含钳制上限）。
+const _: () = assert!(EXACT_MATCH_BOOST > MAX_DICT_WEIGHT);
+// ② 用户加成必须高于"精确匹配候选"能达到的最高排序权重（钳制上限 + 精确加成），
+//    因用户候选原始权重 ≥ 0，故其排序权重恒 > 任何码表候选。
+const _: () = assert!(USER_DICT_BOOST > EXACT_MATCH_BOOST + MAX_DICT_WEIGHT);
+// ③ 拼音精确加成低于五笔精确加成（同权重时五笔精确排前）。
+const _: () = assert!(PINYIN_EXACT_BOOST < EXACT_MATCH_BOOST);
+
 /// 候选词（统一的对外接口）
 #[derive(Debug, Clone)]
 pub struct Candidate {
@@ -136,19 +161,23 @@ impl InputEngine {
         // 拼音混输模式下，编码可能超过4码，放宽自动上屏限制
         let pinyin_active = self.config.pinyin_mixed_enabled && self.pinyin_dict.is_some();
 
-        // 第五码顶字：全码已满（五笔=4）且仍有候选，再敲字母 → 顶前字首选、新键起新字
-        if !pinyin_active
-            && self.config.auto_commit_first_five
-            && self.buffer.len() >= 4
-            && !self.candidates.is_empty()
-        {
-            let text = self.candidates[0].text.clone();
-            let code = self.candidates[0].code.clone();
-            self.user_dict.boost(&code, &text);
-            self.reset();
-            self.buffer.push(key);
-            self.update_candidates();
-            return EngineAction::Commit(text);
+        // 满码守卫：五笔全码=4，缓冲区已满时再敲字母不得增长成“>4 码零候选”死状态。
+        if !pinyin_active && self.buffer.len() >= 4 {
+            if self.config.auto_commit_first_five && !self.candidates.is_empty() {
+                // 第五码顶字：顶当前页首选（与 handle_space 一致）、新键起新字
+                let index = (self.current_page * self.config.candidate_count)
+                    .min(self.candidates.len() - 1);
+                let text = self.candidates[index].text.clone();
+                let code = self.candidates[index].code.clone();
+                self.user_dict.boost(&code, &text);
+                self.reset();
+                self.buffer.push(key);
+                self.update_candidates();
+                return EngineAction::Commit(text);
+            }
+            // 顶字关闭、或四码零候选（见下方 empty_code_action=0）：拒绝增长，
+            // 缓冲区与候选保持不变，吞掉该键（不透传给宿主），等待退格修正。
+            return EngineAction::UpdateCandidates;
         }
 
         self.buffer.push(key);
@@ -171,9 +200,9 @@ impl InputEngine {
         if !pinyin_active && self.buffer.len() == 4 && self.candidates.is_empty() {
             match self.config.empty_code_action {
                 0 => {
-                    // 转临时英文模式
-                    self.reset();
-                    return EngineAction::Reset;
+                    // 不吞字：保留 4 码缓冲区显示在预编辑中（零候选），等待用户退格修正。
+                    // 后续字母键由上方“满码守卫”拒绝增长，退格正常工作。
+                    return EngineAction::UpdateCandidates;
                 }
                 1 => {
                     // 提示音（返回 UpdateCandidates，客户端可 beep）
@@ -198,6 +227,10 @@ impl InputEngine {
         if self.buffer.is_empty() {
             return EngineAction::Unhandled;
         }
+        // 有码零候选：吞掉空格（不透传成空格上屏），保留缓冲区供退格修正
+        if self.candidates.is_empty() {
+            return EngineAction::UpdateCandidates;
+        }
         let index = self.current_page * self.config.candidate_count;
         self.select_candidate(index)
     }
@@ -206,6 +239,10 @@ impl InputEngine {
     pub fn handle_number(&mut self, num: usize) -> EngineAction {
         if self.buffer.is_empty() || num == 0 {
             return EngineAction::Unhandled;
+        }
+        // 有码零候选：吞掉数字键，保留缓冲区供退格修正
+        if self.candidates.is_empty() {
+            return EngineAction::UpdateCandidates;
         }
         let index = self.current_page * self.config.candidate_count + (num - 1);
         self.select_candidate(index)
@@ -338,6 +375,12 @@ impl InputEngine {
                 }
                 return EngineAction::Commit(committed);
             }
+            // 有码但零候选：先清空脏码，再上屏标点，避免残留
+            self.reset();
+            if let Some(punct) = self.punctuation.convert(ch) {
+                return EngineAction::Commit(punct);
+            }
+            return EngineAction::Reset;
         }
 
         if self.mode == InputMode::English {
@@ -467,7 +510,7 @@ impl InputEngine {
             self.candidates.push(Candidate {
                 code: entry.code.clone(),
                 text: entry.text.clone(),
-                weight: entry.weight + 50000, // 用户词典权重加成（始终优先）
+                weight: entry.weight + USER_DICT_BOOST, // 用户词典权重加成（始终优先）
                 is_user: true,
                 origin_index: i,
             });
@@ -487,7 +530,7 @@ impl InputEngine {
             {
                 // 精确匹配（编码长度 == 输入长度）获得权重加成
                 let weight_boost = if entry.code.len() == buffer_len {
-                    5000
+                    EXACT_MATCH_BOOST
                 } else {
                     0
                 };
@@ -515,7 +558,7 @@ impl InputEngine {
                 if !self.candidates.iter().any(|c| c.text == entry.text) {
                     // 拼音精确匹配加成低于五笔，前缀匹配不加成
                     let weight_boost = if entry.code.len() == buffer_len {
-                        1000
+                        PINYIN_EXACT_BOOST
                     } else {
                         0
                     };
@@ -555,7 +598,8 @@ impl InputEngine {
         self.config.auto_commit_first_five = auto_commit_first_5;
         self.config.enter_key_action = enter_key_action;
         self.config.empty_code_action = empty_code_action;
-        self.config.candidate_count = candidate_count;
+        // 候选数下限 1（0 会导致候选恒空 + 翻页页码无界增长），上限 10
+        self.config.candidate_count = candidate_count.clamp(1, 10);
         self.config.pinyin_mixed_enabled = pinyin_mixed_enabled;
     }
 
@@ -566,7 +610,12 @@ impl InputEngine {
 
     /// 从磁盘加载用户词典（加载失败不 panic，退化为空词典）
     pub fn load_user_dict(&mut self, path: &Path) {
-        self.user_dict = UserDict::load(path).unwrap_or_default();
+        self.set_user_dict(UserDict::load(path).unwrap_or_default());
+    }
+
+    /// 用已构建好的用户词典替换当前词典（文件 IO 在调用方锁外完成）
+    pub fn set_user_dict(&mut self, dict: UserDict) {
+        self.user_dict = dict;
     }
 
     /// 手动添加用户词条
@@ -577,6 +626,13 @@ impl InputEngine {
     /// 删除用户词条
     pub fn remove_user_word(&mut self, code: &str, text: &str) -> bool {
         self.user_dict.remove(code, text)
+    }
+
+    /// FFI panic 恢复专用：把引擎清回已知干净状态（空组合缓冲 + 中文模式）。
+    /// 供 `ffi::ffi_guard` 在捕获 panic 后调用，抹掉可能残留的中间组合状态。
+    pub fn reset_input(&mut self) {
+        self.reset();
+        self.mode = InputMode::Chinese;
     }
 }
 
@@ -702,6 +758,185 @@ e\t鹅\t9000
         );
         assert_eq!(engine.buffer(), "a");
         assert!(!engine.candidates().is_empty());
+    }
+
+    // --- Fix 1：自学习影响排序 ---
+    #[test]
+    fn test_self_learning_reorders() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("ab\t甲\t5000\nab\t乙\t4000\n");
+        let config = Config {
+            candidate_count: 5,
+            auto_commit_on_unique_four: true,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        engine.handle_key('a');
+        engine.handle_key('b');
+        assert_eq!(engine.candidates()[0].text, "甲");
+        // 选中第二候选 "乙" → 自学习
+        assert_eq!(
+            engine.handle_number(2),
+            EngineAction::Commit("乙".to_string())
+        );
+        // 再次输入 ab：乙 应被学习提升到第一位
+        engine.handle_key('a');
+        engine.handle_key('b');
+        assert_eq!(engine.candidates()[0].text, "乙");
+        assert!(engine.candidates()[0].is_user);
+    }
+
+    // --- Fix 2：四码零匹配不吞字，保留缓冲区 ---
+    #[test]
+    fn test_four_code_zero_match_keeps_buffer() {
+        let mut engine = create_test_engine();
+        // "abpp" 无任何前缀命中 → 四码零候选
+        for c in "abpp".chars() {
+            engine.handle_key(c);
+        }
+        assert_eq!(engine.buffer(), "abpp");
+        assert!(engine.candidates().is_empty());
+        // 满码守卫：继续敲字母被拒绝，缓冲区不增长
+        let action = engine.handle_key('q');
+        assert_eq!(action, EngineAction::UpdateCandidates);
+        assert_eq!(engine.buffer(), "abpp");
+        // 退格可恢复
+        engine.handle_backspace();
+        assert_eq!(engine.buffer(), "abp");
+    }
+
+    // --- Fix 3：有码零候选时打标点先清空缓冲区再上屏 ---
+    #[test]
+    fn test_punctuation_with_zero_candidate_clears_buffer() {
+        let mut engine = create_test_engine();
+        for c in "abpp".chars() {
+            engine.handle_key(c);
+        }
+        assert!(engine.candidates().is_empty());
+        let action = engine.handle_punctuation(',');
+        assert_eq!(action, EngineAction::Commit("，".to_string()));
+        assert!(engine.buffer().is_empty());
+    }
+
+    // --- Fix 3：有码零候选时 space/number 被吞掉且缓冲区保留 ---
+    #[test]
+    fn test_space_number_with_zero_candidate_swallowed() {
+        let mut engine = create_test_engine();
+        for c in "abpp".chars() {
+            engine.handle_key(c);
+        }
+        assert_eq!(engine.handle_space(), EngineAction::UpdateCandidates);
+        assert_eq!(engine.buffer(), "abpp");
+        assert_eq!(engine.handle_number(1), EngineAction::UpdateCandidates);
+        assert_eq!(engine.buffer(), "abpp");
+        engine.handle_backspace();
+        assert_eq!(engine.buffer(), "abp");
+    }
+
+    // --- Fix 4：关闭顶字开关后，第五码被拒绝、不卡死 ---
+    #[test]
+    fn test_fifth_code_rejected_when_auto_commit_off() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("abcd\t重\t5000\nabcd\t码\t4000\n");
+        let config = Config {
+            candidate_count: 5,
+            auto_commit_on_unique_four: true,
+            auto_commit_first_five: false,
+            wildcard_z_enabled: true,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        assert_eq!(engine.buffer(), "abcd");
+        assert!(engine.candidates().len() >= 2);
+        // 第五码：顶字关闭 → 拒绝增长，缓冲区与候选不变
+        let action = engine.handle_key('e');
+        assert_eq!(action, EngineAction::UpdateCandidates);
+        assert_eq!(engine.buffer(), "abcd");
+        assert!(engine.candidates().len() >= 2);
+    }
+
+    // --- Fix 5：set_user_dict 替换词典（FFI 锁外加载后 apply 的路径）---
+    #[test]
+    fn test_set_user_dict_replaces() {
+        let mut engine = create_test_engine();
+        let mut ud = UserDict::new();
+        ud.add("a".into(), "替换".into(), 500);
+        engine.set_user_dict(ud);
+        engine.handle_key('a');
+        assert!(engine.candidates().iter().any(|c| c.text == "替换"));
+    }
+
+    // --- Fix 6：candidate_count 下限 clamp 到 1 ---
+    #[test]
+    fn test_candidate_count_clamped() {
+        let mut engine = create_test_engine();
+        engine.set_config(true, true, 0, 0, 0, false); // candidate_count=0
+        engine.handle_key('a');
+        // clamp 到 >=1：候选不恒空，每页恰好 1 个
+        assert_eq!(engine.candidates().len(), 1);
+    }
+
+    // --- Fix 7：第五码顶字取当前页首选，而非全局首选 ---
+    #[test]
+    fn test_fifth_code_pushes_current_page_first() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str(
+            "abcd\t甲\t5000\nabcd\t乙\t4000\nabcd\t丙\t3000\nabcd\t丁\t2000\ne\t鹅\t9000\n",
+        );
+        let config = Config {
+            candidate_count: 2,
+            auto_commit_on_unique_four: true,
+            auto_commit_first_five: true,
+            wildcard_z_enabled: true,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        // 翻到第 2 页（丙、丁）
+        engine.next_page();
+        assert_eq!(engine.candidates()[0].text, "丙");
+        // 第五码顶字应顶当前页首选 "丙"，而非全局首选 "甲"
+        let action = engine.handle_key('e');
+        assert_eq!(action, EngineAction::Commit("丙".to_string()));
+        assert_eq!(engine.buffer(), "e");
+    }
+
+    // --- 排序层级固化：精确匹配在对手权重被钳制后仍排前 ---
+    #[test]
+    fn test_exact_match_ranks_first_after_clamp() {
+        let mut dict = DictEngine::new();
+        // 精确匹配 "a"=甲 原始权重仅 1；前缀 "ab"=乙 原始权重远超上限（钳到 MAX_DICT_WEIGHT）。
+        // 若无钳制，乙(9_000_000) 会盖过 甲(1+EXACT_MATCH_BOOST)；钳制后 甲 恒排前。
+        dict.load_from_str("a\t甲\t1\nab\t乙\t9000000\n");
+        let config = Config {
+            candidate_count: 5,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        engine.handle_key('a');
+        assert_eq!(engine.candidates()[0].text, "甲");
+    }
+
+    // --- 排序层级固化：用户词典恒压过被钳制到上限的码表精确匹配 ---
+    #[test]
+    fn test_user_dict_beats_clamped_exact() {
+        let mut dict = DictEngine::new();
+        // 码表精确匹配 "a"=甲 权重顶到上限（+EXACT_MATCH_BOOST 后仍是码表层最高）
+        dict.load_from_str("a\t甲\t9000000\n");
+        let config = Config {
+            candidate_count: 5,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        engine.add_user_word("a".into(), "用户".into());
+        engine.handle_key('a');
+        assert_eq!(engine.candidates()[0].text, "用户");
+        assert!(engine.candidates()[0].is_user);
     }
 
     #[test]

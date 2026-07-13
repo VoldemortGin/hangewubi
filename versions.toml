@@ -13,7 +13,7 @@
 # 与 rust-toolchain.toml 的 channel 必须一致。
 rust = "1.94.1"
 edition = "2024"
-# release profile 已设 panic = "abort"（见 Cargo.toml），保证 panic 不跨 FFI 边界。
+# panic 不跨 FFI 边界由 src/ffi.rs 的 ffi_guard（catch_unwind）保证；release profile 用默认 unwind。
 components = ["clippy", "rustfmt"]
 pinned = true
 

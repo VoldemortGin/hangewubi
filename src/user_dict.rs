@@ -13,10 +13,15 @@ pub struct UserEntry {
 }
 
 /// 用户词典
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct UserDict {
     entries: HashMap<String, Vec<UserEntry>>,
 }
+
+/// 自学习创建的新词条初始权重
+const LEARN_INITIAL_WEIGHT: u32 = 10;
+/// 权重上限，防止长期使用后无限膨胀
+const WEIGHT_CAP: u32 = 100_000;
 
 impl UserDict {
     pub fn new() -> Self {
@@ -70,16 +75,24 @@ impl UserDict {
     }
 
     /// 提升词频（每次选中时调用）
+    ///
+    /// insert-or-increment 语义：条目已存在则累加词频，
+    /// 不存在则以初始权重创建，使日常选字能被学习并提升排序。
     pub fn boost(&mut self, code: &str, text: &str) {
-        if let Some(entries) = self.entries.get_mut(code) {
-            for entry in entries.iter_mut() {
-                if entry.text == text {
-                    entry.use_count += 1;
-                    entry.weight = entry.weight.saturating_add(10);
-                    return;
-                }
+        let entries = self.entries.entry(code.to_string()).or_default();
+        for entry in entries.iter_mut() {
+            if entry.text == text {
+                entry.use_count = entry.use_count.saturating_add(1);
+                entry.weight = entry.weight.saturating_add(10).min(WEIGHT_CAP);
+                return;
             }
         }
+        entries.push(UserEntry {
+            code: code.to_string(),
+            text: text.to_string(),
+            weight: LEARN_INITIAL_WEIGHT,
+            use_count: 1,
+        });
     }
 
     /// 查询用户词条
@@ -138,6 +151,34 @@ mod tests {
         let results = dict.lookup("test");
         assert_eq!(results[0].weight, 110);
         assert_eq!(results[0].use_count, 1);
+    }
+
+    #[test]
+    fn test_boost_creates_missing_entry() {
+        // 自学习：对不存在的编码 boost 应创建条目（insert-or-increment）
+        let mut dict = UserDict::new();
+        dict.boost("a", "工");
+        let results = dict.lookup("a");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].text, "工");
+        assert_eq!(results[0].use_count, 1);
+        assert_eq!(results[0].weight, LEARN_INITIAL_WEIGHT);
+
+        // 再次 boost 同一词条应累加而非重复创建
+        dict.boost("a", "工");
+        let results = dict.lookup("a");
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].use_count, 2);
+        assert_eq!(results[0].weight, LEARN_INITIAL_WEIGHT + 10);
+    }
+
+    #[test]
+    fn test_boost_weight_capped() {
+        let mut dict = UserDict::new();
+        dict.add("a".into(), "工".into(), WEIGHT_CAP);
+        dict.boost("a", "工");
+        // 已达上限，boost 不再增长
+        assert_eq!(dict.lookup("a")[0].weight, WEIGHT_CAP);
     }
 
     #[test]
