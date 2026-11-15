@@ -244,6 +244,10 @@ impl InputEngine {
         if self.candidates.is_empty() {
             return EngineAction::UpdateCandidates;
         }
+        // 序号超出当前页显示数：与“该序号无候选”一致，不得越页选到下一页
+        if num > self.config.candidate_count {
+            return EngineAction::Unhandled;
+        }
         let index = self.current_page * self.config.candidate_count + (num - 1);
         self.select_candidate(index)
     }
@@ -904,6 +908,69 @@ e\t鹅\t9000
         let action = engine.handle_key('e');
         assert_eq!(action, EngineAction::Commit("丙".to_string()));
         assert_eq!(engine.buffer(), "e");
+    }
+
+    // --- 数字键选词不得越页：超出当前页显示数的序号视为无对应候选 ---
+    #[test]
+    fn test_number_select_does_not_cross_page() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("abcd\t甲\t5000\nabcd\t乙\t4000\nabcd\t丙\t3000\nabcd\t丁\t2000\n");
+        let config = Config {
+            candidate_count: 2,
+            auto_commit_on_unique_four: true,
+            wildcard_z_enabled: true,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        assert_eq!(engine.candidates().len(), 2);
+        // 当前页只显示 甲、乙：按 3 不得上屏下一页的 丙
+        assert_eq!(engine.handle_number(3), EngineAction::Unhandled);
+        assert_eq!(engine.buffer(), "abcd");
+        // 页内序号仍正常
+        assert_eq!(
+            engine.handle_number(2),
+            EngineAction::Commit("乙".to_string())
+        );
+    }
+
+    // --- 宿主追加加载依赖的翻页语义：翻页取数后翻回，空格仍取首页首选；翻到目标页再按页内序号选词 ---
+    #[test]
+    fn test_page_roundtrip_and_select_on_target_page() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("abcd\t甲\t5000\nabcd\t乙\t4000\nabcd\t丙\t3000\nabcd\t丁\t2000\n");
+        let config = Config {
+            candidate_count: 2,
+            auto_commit_on_unique_four: true,
+            wildcard_z_enabled: true,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        assert_eq!(engine.next_page(), EngineAction::UpdateCandidates);
+        assert_eq!(engine.candidates()[1].text, "丁");
+        assert_eq!(engine.next_page(), EngineAction::Unhandled);
+        assert_eq!(engine.prev_page(), EngineAction::UpdateCandidates);
+        assert_eq!(engine.candidates()[0].text, "甲");
+        // 全局第 4 个（丁）= 第 1 页页内第 2 个
+        engine.next_page();
+        assert_eq!(
+            engine.handle_number(2),
+            EngineAction::Commit("丁".to_string())
+        );
+
+        // 翻回首页后空格取首页首选
+        for c in "abcd".chars() {
+            engine.handle_key(c);
+        }
+        let first = engine.candidates()[0].text.clone();
+        engine.next_page();
+        engine.prev_page();
+        assert_eq!(engine.handle_space(), EngineAction::Commit(first));
     }
 
     // --- 排序层级固化：精确匹配在对手权重被钳制后仍排前 ---

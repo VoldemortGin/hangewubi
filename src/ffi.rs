@@ -59,6 +59,11 @@ pub struct FfiCandidateList {
 
 static ENGINE: Mutex<Option<InputEngine>> = Mutex::new(None);
 
+/// 当前引擎的初始化参数（码表路径、拼音词典路径）及其返回的词条数，
+/// 用于让相同参数的重复初始化幂等。
+type InitKey = (PathBuf, Option<PathBuf>, i64);
+static INIT_KEY: Mutex<Option<InitKey>> = Mutex::new(None);
+
 impl FfiResult {
     /// 未处理结果（用于引擎未初始化等降级场景）
     fn unhandled() -> Self {
@@ -169,6 +174,23 @@ pub unsafe extern "C" fn ffi_init_with_pinyin(
                 let c_str = unsafe { CStr::from_ptr(dict_path) };
                 PathBuf::from(c_str.to_string_lossy().as_ref())
             };
+            let pinyin_path = if pinyin_dict_path.is_null() {
+                None
+            } else {
+                let c_str = unsafe { CStr::from_ptr(pinyin_dict_path) };
+                Some(PathBuf::from(c_str.to_string_lossy().as_ref()))
+            };
+
+            // 持锁贯穿整个初始化，串行化并发 init；参数相同且引擎已在则直接复用，
+            // 不重建引擎、不丢内存中的用户词典与学习结果。
+            let mut init_key = INIT_KEY.lock().unwrap_or_else(|p| p.into_inner());
+            if let Some((p, py, count)) = init_key.as_ref()
+                && *p == path
+                && *py == pinyin_path
+                && ENGINE.lock().unwrap_or_else(|p| p.into_inner()).is_some()
+            {
+                return *count;
+            }
 
             let mut dict = DictEngine::new();
             let count = match dict.load_from_file(&path) {
@@ -181,17 +203,16 @@ pub unsafe extern "C" fn ffi_init_with_pinyin(
             let mut new_engine = InputEngine::new(dict, user_dict, config);
 
             // 加载拼音词典（如果提供了路径）
-            if !pinyin_dict_path.is_null() {
-                let pinyin_path = unsafe { CStr::from_ptr(pinyin_dict_path) };
-                let pinyin_path = PathBuf::from(pinyin_path.to_string_lossy().as_ref());
+            if let Some(pinyin_path) = &pinyin_path {
                 let mut pinyin_dict = DictEngine::new();
-                if pinyin_dict.load_from_file(&pinyin_path).is_ok() {
+                if pinyin_dict.load_from_file(pinyin_path).is_ok() {
                     new_engine.set_pinyin_dict(pinyin_dict);
                     new_engine.set_config(true, true, 0, 0, 5, true); // 默认启用拼音混输
                 }
             }
 
             *ENGINE.lock().unwrap_or_else(|p| p.into_inner()) = Some(new_engine);
+            *init_key = Some((path, pinyin_path, count as i64));
 
             count as i64
         },
@@ -542,6 +563,7 @@ mod tests {
 
     fn clear_engine() {
         *ENGINE.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *INIT_KEY.lock().unwrap_or_else(|p| p.into_inner()) = None;
     }
 
     fn buffer_is_empty() -> bool {
@@ -590,6 +612,31 @@ mod tests {
         assert!(!buffer_is_empty());
         let mode = ffi_get_mode();
         assert_eq!(mode, 0); // 重置回中文模式
+
+        clear_engine();
+    }
+
+    // 重复初始化（参数相同）幂等：不重建引擎、不丢内存中的用户词典。
+    #[test]
+    fn repeated_init_with_same_paths_keeps_engine_state() {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        clear_engine();
+        let dir = tempfile::tempdir().unwrap();
+        let dict_path = dir.path().join("wubi.txt");
+        std::fs::write(&dict_path, "a\t工\t9999\nab\t节\t4000\n").unwrap();
+        let c_path = CString::new(dict_path.to_string_lossy().as_ref()).unwrap();
+
+        let first = unsafe { ffi_init(c_path.as_ptr()) };
+        assert_eq!(first, 2);
+        let code = CString::new("xy").unwrap();
+        let text = CString::new("自造").unwrap();
+        unsafe { ffi_add_user_word(code.as_ptr(), text.as_ptr()) };
+        assert_eq!(with_engine(0, |e| e.user_dict().entry_count()), 1);
+
+        // 再次以相同参数初始化：返回相同词条数，用户词仍在
+        let second = unsafe { ffi_init(c_path.as_ptr()) };
+        assert_eq!(second, first);
+        assert_eq!(with_engine(0, |e| e.user_dict().entry_count()), 1);
 
         clear_engine();
     }
