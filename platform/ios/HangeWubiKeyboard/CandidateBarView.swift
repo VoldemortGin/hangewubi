@@ -2,10 +2,12 @@ import UIKit
 
 protocol CandidateBarViewDelegate: AnyObject {
     func candidateBarView(_ view: CandidateBarView, didSelectCandidateAt index: Int)
+    /// 候选横向滚动接近末尾（或首屏未占满）时请求追加下一页
+    func candidateBarViewDidScrollNearEnd(_ view: CandidateBarView)
 }
 
 /// 候选条：左边显示当前编码（preedit），右边水平滚动显示候选词
-class CandidateBarView: UIView {
+class CandidateBarView: UIView, UIScrollViewDelegate {
 
     weak var delegate: CandidateBarViewDelegate?
 
@@ -19,6 +21,11 @@ class CandidateBarView: UIView {
     // 复用池：候选按钮与分隔线只创建一次，逐键只更新内容与显隐，避免每键全量重建视图与约束。
     private var buttonPool: [UIButton] = []
     private var separatorPool: [UIView] = []
+
+    // 当前已输入编码（用于计算候选的剩余码提示）与首批（可用数字键选择的）候选数
+    private var input = ""
+    private var numberedCount = 0
+    private var isRequestingMore = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -48,6 +55,7 @@ class CandidateBarView: UIView {
         scrollView.showsVerticalScrollIndicator = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        scrollView.delegate = self
         addSubview(scrollView)
 
         stackView.axis = .horizontal
@@ -83,9 +91,11 @@ class CandidateBarView: UIView {
         preeditLabel.isHidden = text.isEmpty
     }
 
-    func updateCandidates(_ newCandidates: [(text: String, code: String)]) {
-        candidates = newCandidates
-        let count = newCandidates.count
+    func updateCandidates(_ newCandidates: [(text: String, code: String)], input: String = "") {
+        candidates = []
+        self.input = input
+        numberedCount = newCandidates.count
+        isRequestingMore = false
 
         // 从栈中移出全部已排列视图（保留视图与其约束，仅解除排列关系），随后按序复用重排。
         for view in stackView.arrangedSubviews {
@@ -93,23 +103,51 @@ class CandidateBarView: UIView {
             view.isHidden = true
         }
 
-        for (index, candidate) in newCandidates.enumerated() {
-            // 候选项 = 序号 + 候选词
-            let button = dequeueButton(at: index)
-            configureButton(button, index: index, text: candidate.text)
-            button.isHidden = false
-            stackView.addArrangedSubview(button)
+        appendCandidates(newCandidates)
+        scrollView.setContentOffset(.zero, animated: false)
+        isHidden = newCandidates.isEmpty && (preeditLabel.text ?? "").isEmpty
+    }
 
-            // 分隔线（除最后一项）
-            if index < count - 1 {
-                let sep = dequeueSeparator(at: index)
+    /// 在末尾追加候选（翻页加载），不重置滚动位置。
+    func appendCandidates(_ more: [(text: String, code: String)]) {
+        isRequestingMore = false
+        for candidate in more {
+            let index = candidates.count
+            candidates.append(candidate)
+            // 分隔线（除第一项外，位于每项之前）
+            if index > 0 {
+                let sep = dequeueSeparator(at: index - 1)
                 sep.isHidden = false
                 stackView.addArrangedSubview(sep)
             }
+            // 候选项 = 序号 + 候选词 + 剩余码提示
+            let button = dequeueButton(at: index)
+            configureButton(button, index: index, text: candidate.text, code: candidate.code)
+            button.isHidden = false
+            stackView.addArrangedSubview(button)
         }
+    }
 
-        scrollView.setContentOffset(.zero, animated: false)
-        isHidden = newCandidates.isEmpty && (preeditLabel.text ?? "").isEmpty
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        requestMoreIfNearEnd()
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        requestMoreIfNearEnd()
+    }
+
+    /// 滚动接近末尾、或首屏内容未占满可视宽度（无法滚动）时，请求追加下一页。
+    private func requestMoreIfNearEnd() {
+        guard !candidates.isEmpty, !isRequestingMore else { return }
+        let visibleEnd = scrollView.contentOffset.x + scrollView.bounds.width
+        guard visibleEnd >= scrollView.contentSize.width - scrollView.bounds.width / 2 else { return }
+        isRequestingMore = true
+        // 异步派发：避免在布局/滚动回调中同步改动 stackView
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.isRequestingMore else { return }
+            self.delegate?.candidateBarViewDidScrollNearEnd(self)
+        }
     }
 
     /// 取复用池中第 index 个候选按钮，不足则新建一次并入池。
@@ -143,7 +181,8 @@ class CandidateBarView: UIView {
     }
 
     /// 逐键只更新按钮内容与序号（视觉与原实现一致）。
-    private func configureButton(_ button: UIButton, index: Int, text: String) {
+    /// 序号只标在首批候选（即数字键可选的当前页）上；剩余码仅在候选编码长于已输入编码时显示。
+    private func configureButton(_ button: UIButton, index: Int, text: String, code: String) {
         let isFirst = index == 0
         var config = UIButton.Configuration.plain()
         config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12)
@@ -159,8 +198,16 @@ class CandidateBarView: UIView {
             .font: UIFont.systemFont(ofSize: 18, weight: isFirst ? .semibold : .regular),
             .foregroundColor: isFirst ? UIColor.systemBlue : UIColor.label,
         ]
-        let attr = NSMutableAttributedString(string: "\(index + 1) ", attributes: numberAttr)
+        let attr = NSMutableAttributedString(
+            string: index < numberedCount ? "\(index + 1) " : "", attributes: numberAttr)
         attr.append(NSAttributedString(string: text, attributes: textAttr))
+        if code.count > input.count {
+            let hintAttr: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: UIColor.tertiaryLabel,
+            ]
+            attr.append(NSAttributedString(string: String(code.dropFirst(input.count)), attributes: hintAttr))
+        }
         config.attributedTitle = AttributedString(attr)
 
         button.configuration = config

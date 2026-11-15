@@ -10,6 +10,40 @@ protocol KeyboardViewDelegate: AnyObject {
     func keyboardViewDidTapModeSwitch(_ view: KeyboardView)
 }
 
+/// 键盘尺寸断点（唯一出处）。只依据键盘容器的实际宽度与 verticalSizeClass，不看机型 / idiom / 整屏。
+///
+/// | 条件                              | 键区高度 | 尺寸档 | 典型场景                                 |
+/// |-----------------------------------|---------|-------|------------------------------------------|
+/// | verticalSizeClass == .compact     | 162     | 常规  | iPhone 横屏（与旧值一致）                    |
+/// | 宽 < 600                          | 216     | 常规  | iPhone 竖屏、iPad 浮动键盘（与旧 iPhone 值一致） |
+/// | 600 ≤ 宽 < 744                    | 250     | 大    | 推算值：折叠屏内屏展开（近方形）              |
+/// | 744 ≤ 宽 < 1100                   | 280     | 大    | iPad 竖屏（与旧值一致）                      |
+/// | 宽 ≥ 1100                         | 220     | 大    | iPad 横屏（与旧值一致）                      |
+///
+/// 600 / 744 / 250 为推算值：iPhone 竖屏最宽 ~440pt，iPad mini 竖屏 744pt，
+/// 折叠屏内屏（~7.6 英寸）官方 point 尺寸未公布，落在两者之间；待真机校准时只改这里。
+enum KeyboardMetrics {
+    static let candidateBarHeight: CGFloat = 40
+
+    private static let largeLayoutMinWidth: CGFloat = 600
+    private static let iPadPortraitMinWidth: CGFloat = 744
+    private static let iPadLandscapeMinWidth: CGFloat = 1100
+
+    /// 键区（不含候选栏）高度
+    static func keyboardHeight(width: CGFloat, verticalSizeClass: UIUserInterfaceSizeClass) -> CGFloat {
+        if verticalSizeClass == .compact { return 162 }
+        if width < largeLayoutMinWidth { return 216 }
+        if width < iPadPortraitMinWidth { return 250 }
+        if width < iPadLandscapeMinWidth { return 280 }
+        return 220
+    }
+
+    /// 大尺寸档：更大的键距 / 圆角 / 字号
+    static func isLargeLayout(width: CGFloat, verticalSizeClass: UIUserInterfaceSizeClass) -> Bool {
+        verticalSizeClass != .compact && width >= largeLayoutMinWidth
+    }
+}
+
 /// iOS 系统风格键盘视图，视觉对齐苹果简体中文键盘
 class KeyboardView: UIView {
 
@@ -72,8 +106,11 @@ class KeyboardView: UIView {
         }
     }
 
-    private var isIPad: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
+    /// 当前 buildKeys() 所用的尺寸档；宽度跨档时在 layoutSubviews 中重建
+    private var isLargeLayout = false
+
+    private var currentIsLargeLayout: Bool {
+        KeyboardMetrics.isLargeLayout(width: bounds.width, verticalSizeClass: traitCollection.verticalSizeClass)
     }
 
     // MARK: - Layouts
@@ -98,23 +135,10 @@ class KeyboardView: UIView {
 
     // MARK: - 等比计算的布局参数
 
-    private var keySpacing: CGFloat { isIPad ? 8 : 6 }
-    private var rowSpacing: CGFloat { isIPad ? 12 : 11 }
-    private var edgeInset: CGFloat { isIPad ? 6 : 3 }
-    private var keyCornerRadius: CGFloat { isIPad ? 6 : 5 }
-
-    private var availableWidth: CGFloat {
-        let w = UIScreen.main.bounds.width
-        return w - 2 * edgeInset
-    }
-
-    private var letterKeyWidth: CGFloat {
-        (availableWidth - 9 * keySpacing) / 10
-    }
-
-    private var row2SidePadding: CGFloat {
-        (letterKeyWidth + keySpacing) / 2
-    }
+    private var keySpacing: CGFloat { isLargeLayout ? 8 : 6 }
+    private var rowSpacing: CGFloat { isLargeLayout ? 12 : 11 }
+    private var edgeInset: CGFloat { isLargeLayout ? 6 : 3 }
+    private var keyCornerRadius: CGFloat { isLargeLayout ? 6 : 5 }
 
     private var currentRows: [[String]] {
         if isSymbolMode { return symbolRows }
@@ -122,11 +146,12 @@ class KeyboardView: UIView {
         return letterRows
     }
 
-    private var functionalKeyWidth: CGFloat {
-        let rows = currentRows
-        let letterCount = CGFloat(rows[2].count)
-        let lettersWidth = letterCount * letterKeyWidth + (letterCount - 1) * keySpacing
-        return (availableWidth - lettersWidth - 2 * keySpacing) / 2
+    /// 按可用宽度 W（= containerStack 宽度）等比约束：width = W × fraction + keySpacing × spacingFactor。
+    /// 字母键宽 = (W - 9s) / 10 = 0.1W - 0.9s，其余键宽均为其线性组合，宽度任意变化时自动重排。
+    private func proportionalWidth(_ view: UIView, of container: UIView,
+                                   fraction: CGFloat, spacingFactor: CGFloat) -> NSLayoutConstraint {
+        view.widthAnchor.constraint(equalTo: container.widthAnchor, multiplier: fraction,
+                                    constant: spacingFactor * keySpacing)
     }
 
     // MARK: - Init
@@ -149,6 +174,11 @@ class KeyboardView: UIView {
         buildKeys()
     }
 
+    override func layoutSubviews() {
+        if currentIsLargeLayout != isLargeLayout { buildKeys() }
+        super.layoutSubviews()
+    }
+
     // MARK: - Build
 
     private func buildKeys() {
@@ -161,8 +191,10 @@ class KeyboardView: UIView {
         deleteButton = nil
         returnButton = nil
         spaceButton = nil
+        isLargeLayout = currentIsLargeLayout
 
         let rows = currentRows
+        var widthConstraints: [NSLayoutConstraint] = []
 
         let containerStack = UIStackView()
         containerStack.axis = .vertical
@@ -181,10 +213,13 @@ class KeyboardView: UIView {
 
                 let leftSpacer = UIView()
                 leftSpacer.translatesAutoresizingMaskIntoConstraints = false
-                leftSpacer.widthAnchor.constraint(equalToConstant: row2SidePadding).isActive = true
                 let rightSpacer = UIView()
                 rightSpacer.translatesAutoresizingMaskIntoConstraints = false
-                rightSpacer.widthAnchor.constraint(equalToConstant: row2SidePadding).isActive = true
+                // 缩进 = (字母键宽 + 键距) / 2 = 0.05W + 0.05s
+                for spacer in [leftSpacer, rightSpacer] {
+                    widthConstraints.append(proportionalWidth(spacer, of: containerStack,
+                                                              fraction: 0.05, spacingFactor: 0.05))
+                }
 
                 wrapper.addArrangedSubview(leftSpacer)
                 wrapper.addArrangedSubview(rowStack)
@@ -201,22 +236,29 @@ class KeyboardView: UIView {
                 wrapper.distribution = .fill
                 wrapper.spacing = keySpacing
 
+                // 功能键宽 = (W - n×字母键宽 - (n+1)s) / 2，n 为本行字符键数
+                let n = CGFloat(row.count)
+                let functionalFraction = (1 - 0.1 * n) / 2
+                let functionalSpacingFactor = -(0.1 * n + 1) / 2
+
                 let leftKey: KeyButton
                 if isNumberMode || isSymbolMode {
                     leftKey = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
                     leftKey.setTitle(isSymbolMode ? "123" : "#+=", for: .normal)
-                    leftKey.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
+                    leftKey.titleLabel?.font = Self.functionalFont(isLargeLayout: isLargeLayout)
                     leftKey.addTarget(self, action: #selector(symbolToggleTapped), for: .touchUpInside)
                 } else {
                     leftKey = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-                    leftKey.titleLabel?.font = Self.functionalFont(isIPad: isIPad).withSize(isIPad ? 16 : 14)
+                    leftKey.titleLabel?.font = Self.functionalFont(isLargeLayout: isLargeLayout).withSize(isLargeLayout ? 16 : 14)
                     leftKey.addTarget(self, action: #selector(shiftTapped), for: .touchUpInside)
                     modeToggleButton = leftKey
                     updateModeToggleAppearance()
                     updateModeToggleLabel()
                 }
                 leftKey.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
-                leftKey.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
+                widthConstraints.append(proportionalWidth(leftKey, of: containerStack,
+                                                          fraction: functionalFraction,
+                                                          spacingFactor: functionalSpacingFactor))
                 wrapper.addArrangedSubview(leftKey)
 
                 let rowStack = makeRowStack()
@@ -224,11 +266,13 @@ class KeyboardView: UIView {
                 wrapper.addArrangedSubview(rowStack)
 
                 let del = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-                del.setImage(Self.symbolImage("delete.left", isIPad: isIPad), for: .normal)
+                del.setImage(Self.symbolImage("delete.left", isLargeLayout: isLargeLayout), for: .normal)
                 del.tintColor = .label
                 del.addTarget(self, action: #selector(deleteTouchDown), for: .touchDown)
                 del.addTarget(self, action: #selector(deleteTouchUp), for: [.touchUpInside, .touchUpOutside, .touchCancel])
-                del.widthAnchor.constraint(equalToConstant: functionalKeyWidth).isActive = true
+                widthConstraints.append(proportionalWidth(del, of: containerStack,
+                                                          fraction: functionalFraction,
+                                                          spacingFactor: functionalSpacingFactor))
                 deleteButton = del
                 wrapper.addArrangedSubview(del)
 
@@ -247,29 +291,31 @@ class KeyboardView: UIView {
         bottom.distribution = .fill
         bottom.spacing = keySpacing
 
-        let bottomSmallWidth = letterKeyWidth * 1.2
-        let returnWidth = letterKeyWidth * 2.6
+        // 小功能键 = 1.2 × 字母键宽，换行键 = 2.6 × 字母键宽
+        func bottomSmallWidth(_ v: UIView) -> NSLayoutConstraint {
+            proportionalWidth(v, of: containerStack, fraction: 0.12, spacingFactor: -1.08)
+        }
 
         if showGlobeKey {
             let globe = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-            globe.setImage(Self.symbolImage("globe", isIPad: isIPad), for: .normal)
+            globe.setImage(Self.symbolImage("globe", isLargeLayout: isLargeLayout), for: .normal)
             globe.tintColor = .label
             globe.addTarget(self, action: #selector(globeTapped), for: .touchUpInside)
             globe.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
-            globe.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
+            widthConstraints.append(bottomSmallWidth(globe))
             bottom.addArrangedSubview(globe)
         }
 
         let modeBtn = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
         modeBtn.setTitle((isNumberMode || isSymbolMode) ? "ABC" : "123", for: .normal)
-        modeBtn.titleLabel?.font = Self.functionalFont(isIPad: isIPad)
+        modeBtn.titleLabel?.font = Self.functionalFont(isLargeLayout: isLargeLayout)
         modeBtn.addTarget(self, action: #selector(modeSwitchTapped), for: .touchUpInside)
         modeBtn.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
-        modeBtn.widthAnchor.constraint(equalToConstant: bottomSmallWidth).isActive = true
+        widthConstraints.append(bottomSmallWidth(modeBtn))
         bottom.addArrangedSubview(modeBtn)
 
         let space = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
-        space.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 16 : 15, weight: .regular)
+        space.titleLabel?.font = UIFont.systemFont(ofSize: isLargeLayout ? 16 : 15, weight: .regular)
         space.setTitleColor(Self.spaceLabelColor, for: .normal)
         space.tagKey = " "
         space.addTarget(self, action: #selector(spaceTapped), for: .touchUpInside)
@@ -280,11 +326,12 @@ class KeyboardView: UIView {
         updateSpaceLabel()
 
         let returnBtn = KeyButton(style: .functional, cornerRadius: keyCornerRadius)
-        returnBtn.titleLabel?.font = UIFont.systemFont(ofSize: isIPad ? 17 : 16, weight: .regular)
+        returnBtn.titleLabel?.font = UIFont.systemFont(ofSize: isLargeLayout ? 17 : 16, weight: .regular)
         returnBtn.setTitle(returnTitle, for: .normal)
         returnBtn.addTarget(self, action: #selector(returnTapped), for: .touchUpInside)
         returnBtn.addTarget(self, action: #selector(functionalTouchDown), for: .touchDown)
-        returnBtn.widthAnchor.constraint(equalToConstant: returnWidth).isActive = true
+        widthConstraints.append(proportionalWidth(returnBtn, of: containerStack,
+                                                  fraction: 0.26, spacingFactor: -2.34))
         returnButton = returnBtn
         bottom.addArrangedSubview(returnBtn)
         updateReturnStyle()
@@ -293,10 +340,11 @@ class KeyboardView: UIView {
 
         NSLayoutConstraint.activate([
             containerStack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-            containerStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: edgeInset),
-            containerStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -edgeInset),
+            // 左右贴 safe area：横屏时避开灵动岛/圆角
+            containerStack.leadingAnchor.constraint(equalTo: safeAreaLayoutGuide.leadingAnchor, constant: edgeInset),
+            containerStack.trailingAnchor.constraint(equalTo: safeAreaLayoutGuide.trailingAnchor, constant: -edgeInset),
             containerStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
-        ])
+        ] + widthConstraints)
 
         bringSubviewToFront(keyPreview)
     }
@@ -315,7 +363,7 @@ class KeyboardView: UIView {
             let button = KeyButton(style: .letter, cornerRadius: keyCornerRadius)
             button.setTitle(key, for: .normal)
             button.titleLabel?.font = UIFont.systemFont(
-                ofSize: isIPad ? 24 : 23, weight: .regular)
+                ofSize: isLargeLayout ? 24 : 23, weight: .regular)
             button.tagKey = key.lowercased()
             button.previewText = key
             button.addTarget(self, action: #selector(letterTouchDown(_:)), for: .touchDown)
@@ -343,12 +391,12 @@ class KeyboardView: UIView {
             : UIColor.label.withAlphaComponent(0.55)
     }
 
-    private static func functionalFont(isIPad: Bool) -> UIFont {
-        UIFont.systemFont(ofSize: isIPad ? 18 : 16, weight: .regular)
+    private static func functionalFont(isLargeLayout: Bool) -> UIFont {
+        UIFont.systemFont(ofSize: isLargeLayout ? 18 : 16, weight: .regular)
     }
 
-    private static func symbolImage(_ name: String, isIPad: Bool, weight: UIImage.SymbolWeight = .regular) -> UIImage? {
-        let cfg = UIImage.SymbolConfiguration(pointSize: isIPad ? 22 : 19, weight: weight)
+    private static func symbolImage(_ name: String, isLargeLayout: Bool, weight: UIImage.SymbolWeight = .regular) -> UIImage? {
+        let cfg = UIImage.SymbolConfiguration(pointSize: isLargeLayout ? 22 : 19, weight: weight)
         return UIImage(systemName: name, withConfiguration: cfg)
     }
 
@@ -459,7 +507,10 @@ class KeyboardView: UIView {
     private func showPreview(for key: KeyButton) {
         guard let text = key.previewText else { return }
         let frame = key.convert(key.bounds, to: self)
-        keyPreview.show(over: frame, character: text, isIPad: isIPad)
+        // 可绘制区域：水平限于本视图，向上可延伸到父视图（候选栏区域）顶部
+        let topLimit = -self.frame.minY
+        let limits = CGRect(x: 0, y: topLimit, width: bounds.width, height: bounds.height - topLimit)
+        keyPreview.show(over: frame, character: text, isLargeLayout: isLargeLayout, within: limits)
         bringSubviewToFront(keyPreview)
     }
 
@@ -499,8 +550,18 @@ final class KeyButton: UIButton {
         layer.shadowOpacity = 0.35
         layer.shadowRadius = 0
         translatesAutoresizingMaskIntoConstraints = false
-        adjustsImageWhenHighlighted = false
         setStyle(style)
+        if #available(iOS 17, *) {
+            registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: KeyButton, _: UITraitCollection) in
+                self.layer.shadowColor = UIColor.black.cgColor
+            }
+        }
+    }
+
+    /// 替代已弃用的 adjustsImageWhenHighlighted = false：高亮态显式使用同一张图，按下时图标不变暗
+    override func setImage(_ image: UIImage?, for state: UIControl.State) {
+        super.setImage(image, for: state)
+        if state == .normal { super.setImage(image, for: .highlighted) }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -555,7 +616,10 @@ final class KeyButton: UIButton {
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        layer.shadowColor = UIColor.black.cgColor
+        // iOS 17+ 走 init 中的 registerForTraitChanges
+        if #unavailable(iOS 17) {
+            layer.shadowColor = UIColor.black.cgColor
+        }
     }
 
     // MARK: Colors

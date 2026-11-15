@@ -7,6 +7,18 @@ class KeyboardViewController: UIInputViewController {
     private var heightConstraint: NSLayoutConstraint?
 
     private var engineInitialized = false
+    // 引擎异步初始化期间的按键按序缓存，就绪（或失败）后按原顺序重放
+    private enum PendingInput {
+        case key(String), backspace, space, ret, shift
+    }
+    private var engineLoading = true
+    private var pendingInputs: [PendingInput] = []
+
+    // 候选栏横向滚动追加加载：引擎始终停在第 0 页（空格/标点/顶字均取第 0 页首选），
+    // 追加时临时翻页取数据后翻回；点选第 n 个候选时翻到其所在页再按页内序号选择。
+    private var candidatePageSize = 0
+    private var loadedCandidatePages = 0
+    private var candidatesExhausted = true
     private var isChinese = true  // true = Chinese mode, false = English pass-through
 
     // 组合收尾：区分「键盘自身编辑引发的 textWillChange」与「输入目标真正切换」
@@ -62,46 +74,43 @@ class KeyboardViewController: UIInputViewController {
         super.viewWillDisappear(animated)
         // 键盘即将隐藏（切键盘/退到后台/收起）：收尾在途组合并强制落盘用户词典。
         finishComposition()
+        pendingInputs.removeAll()
         saveUserDictIfNeeded(force: true)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         NSLog("[HangeWubi] viewDidAppear called, engineInitialized=\(engineInitialized)")
-        // Fallback: on iPad, view dimensions may not be finalized until viewDidAppear
-        updateHeight()
     }
 
+    // 高度随键盘容器实际宽度更新：旋转 / 折叠屏展开 / 分屏等宽度变化都会触发布局
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         updateHeight()
-    }
-
-    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
-        super.viewWillTransition(to: size, with: coordinator)
-        coordinator.animate(alongsideTransition: { _ in
-            self.updateHeight()
-        })
     }
 
     // MARK: - Engine Init
 
     private func initializeEngineAsync() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.initializeEngine()
+            let ok = self?.initializeEngine() ?? false
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                if self.engineInitialized {
+                // 就绪标志与重放在主线程同一块内完成，保证缓存按键先于后续新按键处理
+                self.engineInitialized = ok
+                self.engineLoading = false
+                if ok {
                     NSLog("[HangeWubi] Engine ready, keyboard fully functional")
                 }
+                self.replayPendingInputs()
             }
         }
     }
 
-    private func initializeEngine() {
+    private func initializeEngine() -> Bool {
         guard let wubiPath = Bundle(for: type(of: self)).path(forResource: "wubi86", ofType: "txt") else {
             NSLog("[HangeWubi] wubi86.txt not found in extension bundle")
-            return
+            return false
         }
         let pinyinPath = Bundle(for: type(of: self)).path(forResource: "pinyin", ofType: "txt")
 
@@ -112,15 +121,38 @@ class KeyboardViewController: UIInputViewController {
         NSLog("[HangeWubi] ffi_init completed in %.3f seconds", elapsed)
         if count < 0 {
             NSLog("[HangeWubi] Failed to initialize engine")
+            return false
         } else {
             let hasPinyin = pinyinPath != nil
             NSLog("[HangeWubi] Engine initialized, loaded \(count) wubi entries, pinyin=\(hasPinyin)")
-            engineInitialized = true
             // 加载用户词典（自造词/调频持久化）。引擎为进程内全局单例，只在首个实例加载一次，
             // 避免后续实例用磁盘旧内容覆盖内存中尚未落盘的自学习数据。
             loadUserDictOnce()
             applySharedSettings(hasPinyin: hasPinyin)
+            return true
         }
+    }
+
+    /// 重放引擎就绪前缓存的按键；初始化失败时各入口走未初始化兜底（原样插入）。
+    private func replayPendingInputs() {
+        let inputs = pendingInputs
+        pendingInputs.removeAll()
+        for input in inputs {
+            switch input {
+            case .key(let key): keyboardView(self.keyboardView, didTapKey: key)
+            case .backspace: keyboardViewDidTapBackspace(self.keyboardView)
+            case .space: keyboardViewDidTapSpace(self.keyboardView)
+            case .ret: keyboardViewDidTapReturn(self.keyboardView)
+            case .shift: keyboardViewDidTapShift(self.keyboardView)
+            }
+        }
+    }
+
+    /// 引擎仍在初始化时缓存按键并返回 true，调用方直接返回。
+    private func enqueueIfEngineLoading(_ input: PendingInput) -> Bool {
+        guard engineLoading else { return false }
+        pendingInputs.append(input)
+        return true
     }
 
     /// 从 App Group 读取共享设置并应用到引擎
@@ -129,8 +161,9 @@ class KeyboardViewController: UIInputViewController {
         let pinyinEnabled = hasPinyin && (defaults?.bool(forKey: "pinyin_mixed_enabled") ?? false)
         let autoCommit4 = defaults?.object(forKey: "auto_commit_unique_4") as? Bool ?? true
         let autoCommit5 = defaults?.object(forKey: "auto_commit_first_5") as? Bool ?? true
-        ffi_set_config(autoCommit4, autoCommit5, 0, 0, 5, pinyinEnabled)
-        NSLog("[HangeWubi] Settings applied: pinyin=\(pinyinEnabled) auto4=\(autoCommit4) auto5=\(autoCommit5)")
+        let candidateCount = UInt8(clamping: defaults?.object(forKey: "candidate_count") as? Int ?? 5)
+        ffi_set_config(autoCommit4, autoCommit5, 0, 0, candidateCount, pinyinEnabled)
+        NSLog("[HangeWubi] Settings applied: pinyin=\(pinyinEnabled) auto4=\(autoCommit4) auto5=\(autoCommit5) candidates=\(candidateCount)")
     }
 
     /// 从 App Group 读取只作用于键盘视图的设置（震动等）
@@ -190,7 +223,7 @@ class KeyboardViewController: UIInputViewController {
             candidateBar.topAnchor.constraint(equalTo: inputView.topAnchor),
             candidateBar.leadingAnchor.constraint(equalTo: inputView.leadingAnchor),
             candidateBar.trailingAnchor.constraint(equalTo: inputView.trailingAnchor),
-            candidateBar.heightAnchor.constraint(equalToConstant: 40),
+            candidateBar.heightAnchor.constraint(equalToConstant: KeyboardMetrics.candidateBarHeight),
 
             keyboardView.topAnchor.constraint(equalTo: candidateBar.bottomAnchor),
             keyboardView.leadingAnchor.constraint(equalTo: inputView.leadingAnchor),
@@ -204,40 +237,26 @@ class KeyboardViewController: UIInputViewController {
         heightConstraint?.isActive = true
     }
 
-    private var isLandscape: Bool {
-        let size = UIScreen.main.bounds.size
-        return size.width > size.height
-    }
-
-    private var isIPad: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
-    }
-
     private var totalHeight: CGFloat {
-        let candidateHeight: CGFloat = 40
-        let keyboardHeight: CGFloat
-        if isIPad {
-            keyboardHeight = isLandscape ? 220 : 280
-        } else {
-            keyboardHeight = isLandscape ? 162 : 216
-        }
-        let height = candidateHeight + keyboardHeight
+        let keyboardHeight = KeyboardMetrics.keyboardHeight(
+            width: view.bounds.width, verticalSizeClass: traitCollection.verticalSizeClass)
+        let height = KeyboardMetrics.candidateBarHeight + keyboardHeight
         // Guard against zero/invalid height during early lifecycle on iPad
         return max(height, 200)
     }
 
     private func updateHeight() {
-        heightConstraint?.constant = totalHeight
+        let height = totalHeight
+        if heightConstraint?.constant != height {
+            heightConstraint?.constant = height
+        }
     }
 
     // MARK: - Engine Interaction
 
     /// 处理引擎返回结果。`fallbackInsert` 为引擎返回 UNHANDLED 时的兜底字符：
     /// 数字/标点等在空 buffer 或未命中映射时引擎会返回 Unhandled，若不兜底会被静默吞掉。
-    /// 返回值：当路径刷新了候选（COMMIT/UPDATE）时携带最新 buffer 与候选数，供上层复用，
-    /// 避免重复的 FFI 往返（见 autoCommitIfBufferFull）。
-    @discardableResult
-    private func processResult(_ result: FfiResult, fallbackInsert: String? = nil) -> (buffer: String, count: Int)? {
+    private func processResult(_ result: FfiResult, fallbackInsert: String? = nil) {
         switch result.action {
         case FFI_ACTION_COMMIT:
             if let text = result.text {
@@ -248,13 +267,13 @@ class KeyboardViewController: UIInputViewController {
             // 发生了实际提交/选字，引擎可能已更新自造词/词频，标记待落盘
             markUserDictDirty()
             saveUserDictIfNeeded(force: false)
-            return refreshCandidates()
+            refreshCandidates()
 
         case FFI_ACTION_UPDATE_CANDIDATES:
             if let text = result.text {
                 ffi_free_string(text)
             }
-            return refreshCandidates()
+            refreshCandidates()
 
         case FFI_ACTION_RESET:
             if let text = result.text {
@@ -262,7 +281,6 @@ class KeyboardViewController: UIInputViewController {
             }
             textDocumentProxy.unmarkText()
             candidateBar.clear()
-            return nil
 
         case FFI_ACTION_UNHANDLED:
             if let text = result.text {
@@ -271,36 +289,20 @@ class KeyboardViewController: UIInputViewController {
             if let fallback = fallbackInsert {
                 textDocumentProxy.insertText(fallback)
             }
-            return nil
 
         default:
             if let text = result.text {
                 ffi_free_string(text)
             }
-            return nil
         }
     }
 
-    @discardableResult
-    private func refreshCandidates() -> (buffer: String, count: Int) {
-        // Get current buffer
-        let bufferPtr = ffi_get_buffer()
-        let buffer = bufferPtr.flatMap { String(cString: $0) } ?? ""
-        if let ptr = bufferPtr { ffi_free_string(ptr) }
-
-        // Get candidates
-        let list = ffi_get_candidates()
-        var candidates: [(text: String, code: String)] = []
-
-        if list.count > 0, let items = list.candidates {
-            for i in 0..<list.count {
-                let c = items[i]
-                let text = c.text.flatMap { String(cString: $0) } ?? ""
-                let code = c.code.flatMap { String(cString: $0) } ?? ""
-                candidates.append((text: text, code: code))
-            }
-        }
-        ffi_free_candidate_list(list)
+    private func refreshCandidates() {
+        let buffer = getBuffer()
+        let candidates = currentPageCandidates()
+        candidatePageSize = candidates.count
+        loadedCandidatePages = 1
+        candidatesExhausted = candidates.isEmpty
 
         // Show composing text inline at the cursor via marked text
         if !buffer.isEmpty {
@@ -311,19 +313,50 @@ class KeyboardViewController: UIInputViewController {
 
         // Preedit is now shown inline; keep the label empty
         candidateBar.updatePreedit("")
-        candidateBar.updateCandidates(candidates)
+        candidateBar.updateCandidates(candidates, input: buffer)
         candidateBar.isHidden = candidates.isEmpty
-        return (buffer: buffer, count: candidates.count)
     }
 
-    /// 满 4 码自动上屏：模仿 iOS 系统五笔行为。
-    /// 如果引擎已自动 commit（unique 4 码），buffer 已为空，无操作；否则提交首选候选。
-    /// buffer/count 复用字母键路径已从引擎取回的值，避免重复 FFI 往返（I-L1）。
-    private func autoCommitIfBufferFull(buffer: String?, count: Int?) {
-        guard let buffer = buffer, let count = count else { return }
-        guard buffer.count >= 4, count > 0 else { return }
-        let result = ffi_handle_number(1)
-        processResult(result)
+    /// 取引擎当前页候选（text + code）。
+    private func currentPageCandidates() -> [(text: String, code: String)] {
+        let list = ffi_get_candidates()
+        var candidates: [(text: String, code: String)] = []
+        if list.count > 0, let items = list.candidates {
+            for i in 0..<list.count {
+                let c = items[i]
+                let text = c.text.flatMap { String(cString: $0) } ?? ""
+                let code = c.code.flatMap { String(cString: $0) } ?? ""
+                candidates.append((text: text, code: code))
+            }
+        }
+        ffi_free_candidate_list(list)
+        return candidates
+    }
+
+    /// 连续翻 `pages` 页，返回实际翻过的页数（遇到末页即停）。
+    private func turnPages(forward: Bool, _ pages: Int) -> Int {
+        var turned = 0
+        while turned < pages {
+            let result = forward ? ffi_next_page() : ffi_prev_page()
+            if let text = result.text { ffi_free_string(text) }
+            guard result.action == FFI_ACTION_UPDATE_CANDIDATES else { break }
+            turned += 1
+        }
+        return turned
+    }
+
+    /// 追加加载下一页候选：翻到下一页取数据后翻回第 0 页，保持引擎页状态不变。
+    private func loadMoreCandidates() {
+        guard engineInitialized, !candidatesExhausted else { return }
+        let turned = turnPages(forward: true, loadedCandidatePages)
+        let more = turned == loadedCandidatePages ? currentPageCandidates() : []
+        _ = turnPages(forward: false, turned)
+        guard !more.isEmpty else {
+            candidatesExhausted = true
+            return
+        }
+        loadedCandidatePages += 1
+        candidateBar.appendCandidates(more)
     }
 
     private func getBuffer() -> String {
@@ -331,19 +364,6 @@ class KeyboardViewController: UIInputViewController {
         let s = ptr.flatMap { String(cString: $0) } ?? ""
         if let p = ptr { ffi_free_string(p) }
         return s
-    }
-
-    /// 取当前候选文本列表（供强制收尾提交首选候选用）。
-    private func currentCandidateStrings() -> [String] {
-        let list = ffi_get_candidates()
-        var result: [String] = []
-        if list.count > 0, let items = list.candidates {
-            for i in 0..<list.count {
-                result.append(items[i].text.flatMap { String(cString: $0) } ?? "")
-            }
-        }
-        ffi_free_candidate_list(list)
-        return result
     }
 
     // MARK: - Composition Finalize
@@ -362,7 +382,7 @@ class KeyboardViewController: UIInputViewController {
         // 无在途组合：直接返回，正常打字/空闲路径无副作用。
         guard !buffer.isEmpty else { return }
 
-        if let first = currentCandidateStrings().first {
+        if let first = currentPageCandidates().first?.text {
             textDocumentProxy.setMarkedText(first, selectedRange: NSRange(location: first.count, length: 0))
             textDocumentProxy.unmarkText()
             markUserDictDirty()
@@ -436,6 +456,7 @@ class KeyboardViewController: UIInputViewController {
 extension KeyboardViewController: KeyboardViewDelegate {
 
     func keyboardView(_ view: KeyboardView, didTapKey key: String) {
+        if enqueueIfEngineLoading(.key(key)) { return }
         markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText(key)
@@ -454,9 +475,8 @@ extension KeyboardViewController: KeyboardViewDelegate {
             if ch.isLetter {
                 let lower = ch.lowercased()
                 let result = ffi_handle_key(Int8(bitPattern: Character(lower).asciiValue!))
-                let info = processResult(result)
-                // 五笔最多 4 码：满 4 码且仍有候选时，自动选择第一候选上屏（复用 info 避免重复 FFI）
-                autoCommitIfBufferFull(buffer: info?.buffer, count: info?.count)
+                // 上屏时机（四码唯一 / 第五码顶字）完全由引擎决定，宿主只消费结果
+                processResult(result)
             } else if ch.isNumber {
                 // 数字身兼两职：空 buffer 时是字面数字（走系统），非空时是候选选择。
                 // 空 buffer 直接 insertText 才能打出 0-9（引擎对空 buffer / num==0 会返回 Unhandled）。
@@ -495,6 +515,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapBackspace(_ view: KeyboardView) {
+        if enqueueIfEngineLoading(.backspace) { return }
         markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.deleteBackward()
@@ -511,6 +532,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapSpace(_ view: KeyboardView) {
+        if enqueueIfEngineLoading(.space) { return }
         markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText(" ")
@@ -528,6 +550,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapReturn(_ view: KeyboardView) {
+        if enqueueIfEngineLoading(.ret) { return }
         markSelfEditing()
         guard engineInitialized else {
             textDocumentProxy.insertText("\n")
@@ -548,6 +571,7 @@ extension KeyboardViewController: KeyboardViewDelegate {
     }
 
     func keyboardViewDidTapShift(_ view: KeyboardView) {
+        if enqueueIfEngineLoading(.shift) { return }
         markSelfEditing()
         // Toggle Chinese/English mode
         if engineInitialized {
@@ -577,10 +601,22 @@ extension KeyboardViewController: CandidateBarViewDelegate {
 
     func candidateBarView(_ view: CandidateBarView, didSelectCandidateAt index: Int) {
         markSelfEditing()
-        guard engineInitialized else { return }
-        // ffi_handle_number uses 1-based indexing for candidate selection
-        let num = UInt8(index + 1)
-        let result = ffi_handle_number(num)
+        guard engineInitialized, candidatePageSize > 0 else { return }
+        // 引擎按「当前页 + 页内 1-based 序号」选词：翻到目标页再选，未上屏则翻回第 0 页
+        let page = index / candidatePageSize
+        let turned = turnPages(forward: true, page)
+        guard turned == page else {
+            _ = turnPages(forward: false, turned)
+            return
+        }
+        let result = ffi_handle_number(UInt8(index % candidatePageSize + 1))
+        if result.action != FFI_ACTION_COMMIT {
+            _ = turnPages(forward: false, turned)
+        }
         processResult(result)
+    }
+
+    func candidateBarViewDidScrollNearEnd(_ view: CandidateBarView) {
+        loadMoreCandidates()
     }
 }

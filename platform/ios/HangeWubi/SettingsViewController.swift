@@ -109,6 +109,5 @@ class SettingsViewController: UITableViewController {
         default:
             break
         }
-        defaults.synchronize()
     }
 }

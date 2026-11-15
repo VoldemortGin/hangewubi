@@ -37,15 +37,16 @@ final class KeyPreviewView: UIView {
     /// - Parameters:
     ///   - keyFrame: 按键在 KeyboardView 坐标系中的 frame
     ///   - character: 放大展示的字符
-    ///   - isIPad: iPad 用更大字号
-    func show(over keyFrame: CGRect, character: String, isIPad: Bool) {
+    ///   - isLargeLayout: 大尺寸档用更大字号
+    ///   - limits: 气泡允许出现的区域（KeyboardView 坐标系），超出时夹取回来
+    func show(over keyFrame: CGRect, character: String, isLargeLayout: Bool, within limits: CGRect) {
         label.text = character
-        label.font = .systemFont(ofSize: isIPad ? 38 : 32, weight: .regular)
+        label.font = .systemFont(ofSize: isLargeLayout ? 38 : 32, weight: .regular)
 
         let width = max(keyFrame.width * 1.35, keyFrame.width + 12)
         let height = keyFrame.height * 1.55
-        let x = keyFrame.midX - width / 2
-        let y = keyFrame.minY - height + 4
+        let x = min(max(keyFrame.midX - width / 2, limits.minX), limits.maxX - width)
+        let y = max(keyFrame.minY - height + 4, limits.minY)
         frame = CGRect(x: x, y: y, width: width, height: height)
         isHidden = false
     }
