@@ -405,7 +405,7 @@ ibus_register(void)
         "com.hangewubi.ibus",                  /* name */
         "晗戈五笔输入法",                        /* description */
         "0.1.0",                                /* version */
-        "MIT",                                  /* license */
+        "Apache-2.0",                           /* license */
         "HangeWubi",                            /* author */
         "https://github.com/VoldemortGin/hangewubi", /* homepage */
         "",                                     /* command line */
@@ -417,7 +417,7 @@ ibus_register(void)
         "晗戈五笔",                              /* longname */
         "基于 Rust 的高性能五笔输入法",            /* description */
         "zh",                                   /* language */
-        "MIT",                                  /* license */
+        "Apache-2.0",                           /* license */
         "HangeWubi",                            /* author */
         "/usr/share/ibus-hangewubi/icon.png",   /* icon */
         "us"                                    /* layout */

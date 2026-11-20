@@ -16,3 +16,13 @@ platform/android/build/
 platform/android/app/build/
 platform/android/app/.cxx/
 platform/android/local.properties
+
+# Cloudflare Wrangler 本地缓存
+.wrangler/
+
+# 签名 / 证书 / 密钥（补充）
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.pem
