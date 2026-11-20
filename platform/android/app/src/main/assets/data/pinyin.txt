@@ -1,4 +1,4 @@
-# 函戈五笔 拼音码表
+# 晗戈五笔 拼音码表
 # 格式：拼音	汉字	权重
 # 来源：rime-pinyin-simp + rime-luna-pinyin
 # 条目数：119004
