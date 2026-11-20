@@ -1,6 +1,7 @@
 use crate::trie::Trie;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::OnceLock;
 
 /// 候选词条目
 #[derive(Debug, Clone)]
@@ -24,6 +25,10 @@ pub struct DictEngine {
     exact_map: HashMap<String, Vec<usize>>,
     /// 前缀匹配 Trie
     trie: Trie,
+    /// 反查索引：词条文本 → (最短编码, 最长编码) 的词条索引（首次反查时懒构建，add_entry 时失效）
+    code_index: OnceLock<HashMap<String, (usize, usize)>>,
+    /// 联想索引：首字 → 以该字开头的多字词条索引（首次联想时懒构建，add_entry 时失效）
+    phrase_index: OnceLock<HashMap<char, Vec<usize>>>,
 }
 
 impl DictEngine {
@@ -32,6 +37,8 @@ impl DictEngine {
             entries: Vec::new(),
             exact_map: HashMap::new(),
             trie: Trie::new(),
+            code_index: OnceLock::new(),
+            phrase_index: OnceLock::new(),
         }
     }
 
@@ -88,6 +95,8 @@ impl DictEngine {
 
     /// 添加单个词条
     pub fn add_entry(&mut self, code: String, text: String, weight: u32) {
+        self.code_index = OnceLock::new();
+        self.phrase_index = OnceLock::new();
         let index = self.entries.len();
         self.trie.insert(&code, index);
         self.exact_map.entry(code.clone()).or_default().push(index);
@@ -97,6 +106,93 @@ impl DictEngine {
             weight,
             origin_index: index,
         });
+    }
+
+    /// 反查索引：最短编码等长取权重高者、最长编码等长取权重高者，再取先出现者
+    fn code_index(&self) -> &HashMap<String, (usize, usize)> {
+        self.code_index.get_or_init(|| {
+            let mut map: HashMap<String, (usize, usize)> = HashMap::new();
+            for (i, e) in self.entries.iter().enumerate() {
+                let key = |k: &DictEntry| (k.code.len(), std::cmp::Reverse(k.weight));
+                match map.get_mut(&e.text) {
+                    None => {
+                        map.insert(e.text.clone(), (i, i));
+                    }
+                    Some((short, long)) => {
+                        if key(e) < key(&self.entries[*short]) {
+                            *short = i;
+                        }
+                        let old = &self.entries[*long];
+                        if (e.code.len(), e.weight) > (old.code.len(), old.weight) {
+                            *long = i;
+                        }
+                    }
+                }
+            }
+            map
+        })
+    }
+
+    /// 反查：词条文本对应的最短编码（等长取权重高者，再取先出现者）
+    pub fn shortest_code_of(&self, text: &str) -> Option<&str> {
+        self.code_index()
+            .get(text)
+            .map(|&(i, _)| self.entries[i].code.as_str())
+    }
+
+    /// 反查：词条文本对应的全码，即码表中该文本最长的编码（等长取权重高者，再取先出现者）
+    pub fn full_code_of(&self, text: &str) -> Option<&str> {
+        self.code_index()
+            .get(text)
+            .map(|&(_, i)| self.entries[i].code.as_str())
+    }
+
+    /// 联想：文本以 `prefix` 开头且比它长的词条（码表出现序；同词多码会重复出现）
+    pub fn words_with_prefix(&self, prefix: &str) -> Vec<&DictEntry> {
+        let Some(first) = prefix.chars().next() else {
+            return vec![];
+        };
+        let index = self.phrase_index.get_or_init(|| {
+            let mut map: HashMap<char, Vec<usize>> = HashMap::new();
+            for (i, e) in self.entries.iter().enumerate() {
+                let mut chars = e.text.chars();
+                if let (Some(c), Some(_)) = (chars.next(), chars.next()) {
+                    map.entry(c).or_default().push(i);
+                }
+            }
+            map
+        });
+        index
+            .get(&first)
+            .into_iter()
+            .flatten()
+            .map(|&i| &self.entries[i])
+            .filter(|e| e.text.len() > prefix.len() && e.text.starts_with(prefix))
+            .collect()
+    }
+
+    /// 按五笔 86 词组规则为词计算编码：
+    /// 单字取全码；二字词各取前两码；三字词前两字各取首码、第三字取前两码；
+    /// 四字及以上取第一、二、三字及末字的首码。
+    /// 含非汉字、任一字码表查不到、或全码位数不足所需取码数时返回 None（不猜）。
+    pub fn phrase_code(&self, word: &str) -> Option<String> {
+        let chars: Vec<char> = word.chars().collect();
+        if chars.is_empty() || !chars.iter().all(|&c| crate::charset::is_han(c)) {
+            return None;
+        }
+        // (取码的字序号, 取前几码)
+        let picks: Vec<(usize, usize)> = match chars.len() {
+            1 => return self.full_code_of(word).map(str::to_string),
+            2 => vec![(0, 2), (1, 2)],
+            3 => vec![(0, 1), (1, 1), (2, 2)],
+            n => vec![(0, 1), (1, 1), (2, 1), (n - 1, 1)],
+        };
+        let mut code = String::new();
+        for (i, take) in picks {
+            let full = self.full_code_of(chars[i].encode_utf8(&mut [0u8; 4]))?;
+            code.push_str(full.get(..take).filter(|p| p.len() == take)?);
+        }
+        Some(code)
     }
 
     /// 精确匹配查询
@@ -195,6 +291,17 @@ impl DictEngine {
     }
 
     /// 获取总词条数
+    /// 码表中是否存在 `lookup` 会匹配到的条目（与 `lookup` 同口径：含 z 通配时走等长通配，否则前缀）
+    pub fn has_prefix(&self, input: &str, wildcard_enabled: bool) -> bool {
+        if input.is_empty() {
+            return false;
+        }
+        if wildcard_enabled && input.contains('z') {
+            return !self.trie.wildcard_match(input).is_empty();
+        }
+        self.trie.has_prefix(input)
+    }
+
     pub fn entry_count(&self) -> usize {
         self.entries.len()
     }
@@ -267,6 +374,117 @@ bb\t子\t5500
         // az 匹配 aa, ab
         assert!(results.iter().any(|e| e.text == "式"));
         assert!(results.iter().any(|e| e.text == "节"));
+    }
+
+    #[test]
+    fn test_shortest_code_of() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("vbg\t好\t10\nvb\t好\t10\nvbf\t妇\t5\n");
+        assert_eq!(dict.shortest_code_of("好"), Some("vb"));
+        assert_eq!(dict.shortest_code_of("妇"), Some("vbf"));
+        assert_eq!(dict.shortest_code_of("无"), None);
+        dict.add_entry("v".into(), "好".into(), 1);
+        assert_eq!(dict.shortest_code_of("好"), Some("v"));
+    }
+
+    fn phrase_dict() -> DictEngine {
+        let mut dict = DictEngine::new();
+        // 晗=jfwk 戈=agnt 五=gghg 笔=ttfn 输=lwgj 入=ty（只有二码：取首码够、取二码够）
+        // 一=g / ggll（一级简码 + 全码）
+        dict.load_from_str(
+            "j\t晗\t1\njfwk\t晗\t1\na\t戈\t10\nagnt\t戈\t10\ngg\t五\t1\ngghg\t五\t1\n\
+             t\t笔\t1\nttfn\t笔\t1\nlwgj\t输\t1\nty\t入\t1\ng\t一\t20\nggll\t一\t10\n\
+             k\t口\t1\n",
+        );
+        dict
+    }
+
+    #[test]
+    fn test_full_code_of_takes_longest() {
+        let dict = phrase_dict();
+        assert_eq!(dict.full_code_of("一"), Some("ggll"));
+        assert_eq!(dict.shortest_code_of("一"), Some("g"));
+        assert_eq!(dict.full_code_of("入"), Some("ty"));
+        assert_eq!(dict.full_code_of("无"), None);
+    }
+
+    #[test]
+    fn test_phrase_code_rules() {
+        let dict = phrase_dict();
+        // 单字：全码
+        assert_eq!(dict.phrase_code("晗").as_deref(), Some("jfwk"));
+        // 二字：各取前两码
+        assert_eq!(dict.phrase_code("晗戈").as_deref(), Some("jfag"));
+        assert_eq!(dict.phrase_code("一入").as_deref(), Some("ggty"));
+        // 三字：首码 + 首码 + 前两码
+        assert_eq!(dict.phrase_code("晗戈五").as_deref(), Some("jagg"));
+        // 四字：各取首码
+        assert_eq!(dict.phrase_code("晗戈五笔").as_deref(), Some("jagt"));
+        // 五字及以上：一、二、三、末字首码
+        assert_eq!(dict.phrase_code("晗戈五笔输入").as_deref(), Some("jagt"));
+        assert_eq!(dict.phrase_code("晗戈五一笔输").as_deref(), Some("jagl"));
+    }
+
+    #[test]
+    fn test_phrase_code_failures() {
+        let dict = phrase_dict();
+        // 查不到的字
+        assert_eq!(dict.phrase_code("晗龘"), None);
+        assert_eq!(dict.phrase_code("龘"), None);
+        // 含非汉字
+        assert_eq!(dict.phrase_code("晗a"), None);
+        assert_eq!(dict.phrase_code("晗，戈"), None);
+        assert_eq!(dict.phrase_code(""), None);
+        // 全码位数不足所需取码数（口 只有一码，二字词需取两码）
+        assert_eq!(dict.phrase_code("口晗"), None);
+        // 只需首码时不受影响
+        assert_eq!(dict.phrase_code("口晗戈五").as_deref(), Some("kjag"));
+    }
+
+    #[test]
+    fn test_phrase_code_matches_real_dict() {
+        // 真实码表：规则算出的编码与码表收录的词组编码一致
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("data/wubi86.txt");
+        let mut dict = DictEngine::new();
+        dict.load_from_file(&path).unwrap();
+        for (word, code) in [
+            ("中国", "khlg"),
+            ("输入法", "ltif"),
+            ("中华人民共和国", "kwwl"),
+        ] {
+            assert_eq!(dict.phrase_code(word).as_deref(), Some(code), "{word}");
+        }
+        assert_eq!(dict.phrase_code("晗戈").as_deref(), Some("jwag"));
+    }
+
+    #[test]
+    fn test_words_with_prefix_and_invalidation() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str("a\t中\t9\naa\t中国\t8\nkhlg\t中国\t7\nb\t国中\t6\nc\t中国人\t5\n");
+        let texts = |d: &DictEngine, p: &str| -> Vec<String> {
+            d.words_with_prefix(p)
+                .iter()
+                .map(|e| e.text.clone())
+                .collect()
+        };
+        assert_eq!(texts(&dict, "中"), ["中国", "中国", "中国人"]);
+        assert_eq!(texts(&dict, "中国"), ["中国人"]);
+        assert!(texts(&dict, "中国人").is_empty());
+        assert!(texts(&dict, "").is_empty());
+        // 新增词条后索引失效重建
+        dict.add_entry("d".into(), "中间".into(), 1);
+        assert_eq!(texts(&dict, "中"), ["中国", "中国", "中国人", "中间"]);
+    }
+
+    #[test]
+    fn test_has_prefix() {
+        let dict = sample_dict();
+        assert!(dict.has_prefix("aad", false));
+        assert!(dict.has_prefix("a", false));
+        assert!(!dict.has_prefix("aac", false));
+        assert!(!dict.has_prefix("", false));
+        assert!(dict.has_prefix("az", true));
+        assert!(!dict.has_prefix("az", false));
     }
 
     #[test]

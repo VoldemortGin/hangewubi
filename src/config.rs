@@ -46,6 +46,22 @@ pub struct Config {
     /// 拼音词典路径
     #[serde(default)]
     pub pinyin_dict_path: Option<PathBuf>,
+
+    /// 逐码提示：开=候选含前缀匹配补充的更长编码条目并带编码提示；关=只显示精确匹配
+    #[serde(default = "default_true")]
+    pub code_hint: bool,
+
+    /// 仅常用字：开=候选中含 GB2312 之外汉字的条目被过滤；关=显示全部
+    #[serde(default)]
+    pub common_chars_only: bool,
+
+    /// 自动造词：开=连续逐字上屏的 2–4 字码表外词组出现第 2 次时自动作为自造词入库；默认关
+    #[serde(default)]
+    pub auto_phrase: bool,
+
+    /// 词语联想：开=五笔上屏汉字后，候选列出以其开头的更长词条的后续部分；默认关
+    #[serde(default)]
+    pub association: bool,
 }
 
 fn default_candidate_count() -> usize {
@@ -70,6 +86,10 @@ impl Default for Config {
             user_dict_path: None,
             pinyin_mixed_enabled: false,
             pinyin_dict_path: None,
+            code_hint: true,
+            common_chars_only: false,
+            auto_phrase: false,
+            association: false,
         }
     }
 }

@@ -1,3 +1,4 @@
+pub mod charset;
 pub mod config;
 pub mod dict;
 pub mod engine;

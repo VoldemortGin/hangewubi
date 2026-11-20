@@ -13,7 +13,7 @@
 
 use crate::config::Config;
 use crate::dict::DictEngine;
-use crate::engine::{EngineAction, InputEngine, InputMode};
+use crate::engine::{AddWordError, EngineAction, InputEngine, InputMode};
 use crate::user_dict::UserDict;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
@@ -351,6 +351,60 @@ pub extern "C" fn ffi_toggle_mode() {
     );
 }
 
+/// 切换中/英文标点，返回新状态（true=中文标点，默认）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_toggle_chinese_punct() -> bool {
+    ffi_guard(|| true, || with_engine(true, |e| e.toggle_chinese_punct()))
+}
+
+/// 查询当前是否中文标点（true=中文标点）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_get_chinese_punct() -> bool {
+    ffi_guard(|| true, || with_engine(true, |e| e.chinese_punct()))
+}
+
+/// 切换全角/半角，返回新状态（true=全角，默认半角）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_toggle_full_width() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.toggle_full_width()))
+}
+
+/// 查询当前是否全角（true=全角）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_get_full_width() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.full_width()))
+}
+
+/// 切换繁体输出，返回新状态（true=繁体，默认简体）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_toggle_traditional() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.toggle_traditional()))
+}
+
+/// 设置繁体输出（true=繁体）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_traditional(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_traditional(enabled));
+        },
+    );
+}
+
+/// 查询当前是否繁体输出（true=繁体）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_get_traditional() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.traditional()))
+}
+
+/// 取走并清除「最近一次按键因空码被拒绝且需提示音」标志
+/// 返回 true 表示宿主应发出提示音；调用后标志复位
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_take_beep() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.take_beep()))
+}
+
 /// 获取当前输入模式
 /// 0=中文, 1=英文, 2=临时英文
 #[unsafe(no_mangle)]
@@ -398,7 +452,9 @@ pub extern "C" fn ffi_get_candidates() -> FfiCandidateList {
             let mut ffi_candidates: Vec<FfiCandidate> = candidates
                 .iter()
                 .map(|c| FfiCandidate {
-                    text: CString::new(c.text.as_str()).unwrap_or_default().into_raw(),
+                    text: CString::new(e.output_text(&c.text))
+                        .unwrap_or_default()
+                        .into_raw(),
                     code: CString::new(c.code.as_str()).unwrap_or_default().into_raw(),
                     is_user: c.is_user,
                 })
@@ -412,6 +468,158 @@ pub extern "C" fn ffi_get_candidates() -> FfiCandidateList {
                 count,
             }
         })
+    })
+}
+
+/// 获取当前页第 index 个候选（与 ffi_get_candidates 同序，从 0 起）的编码提示
+/// 即完整编码去掉已输入前缀后的剩余编码；z 通配候选为其完整编码。
+/// 无提示（精确匹配）、序号越界或引擎未初始化时返回 NULL。
+/// 返回的字符串需要调用 ffi_free_string 释放
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_get_candidate_hint(index: usize) -> *mut c_char {
+    ffi_guard(std::ptr::null_mut, || {
+        with_engine(std::ptr::null_mut(), |e| {
+            match e.candidates().get(index).map(|c| c.hint.as_str()) {
+                Some(hint) if !hint.is_empty() => CString::new(hint).unwrap_or_default().into_raw(),
+                _ => std::ptr::null_mut(),
+            }
+        })
+    })
+}
+
+/// 设置逐码提示开关：true=显示前缀匹配补充候选并带编码提示（默认）；false=只显示精确匹配
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_code_hint(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_code_hint(enabled));
+        },
+    );
+}
+
+/// 设置「仅常用字」开关：true=过滤含 GB2312 之外汉字的候选；false=显示全部（默认）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_common_chars_only(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_common_chars_only(enabled));
+        },
+    );
+}
+
+/// 设置「自动造词」开关：true=连续逐字上屏的码表外 2–4 字词组出现第 2 次时自动入库为自造词；false=关闭（默认）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_auto_phrase(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_auto_phrase(enabled));
+        },
+    );
+}
+
+/// 设置「词语联想」开关：true=五笔上屏汉字后候选列出以其开头的更长词的后续部分；false=关闭（默认）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_association(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_association(enabled));
+        },
+    );
+}
+
+/// 查询当前是否处于词语联想态（编码缓冲为空，但 ffi_get_candidates 返回联想候选）。
+/// 联想关闭或引擎未初始化时恒为 false
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_is_associating() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.is_associating()))
+}
+
+/// 通知引擎「发生了引擎看不到的打断」（如无编码时直通给应用的方向键 / 快捷键 / Tab），
+/// 清空自动造词的连续上屏序列。未开启自动造词时调用无副作用
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_break_auto_phrase() {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.break_phrase_seq());
+        },
+    );
+}
+
+/// 预览某词按五笔 86 词组规则自动计算的编码（供界面显示）
+/// word: UTF-8 词文本。无法编码（含非汉字 / 有字查不到编码）、word 为 NULL 或引擎未初始化时返回 NULL。
+/// 返回的字符串需要调用 ffi_free_string 释放
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ffi_preview_word_code(word: *const c_char) -> *mut c_char {
+    ffi_guard(std::ptr::null_mut, || {
+        if word.is_null() {
+            return std::ptr::null_mut();
+        }
+        let word = unsafe { CStr::from_ptr(word) }.to_string_lossy();
+        with_engine(None, |e| e.preview_word_code(word.trim()))
+            .map(|code| CString::new(code).unwrap_or_default().into_raw())
+            .unwrap_or(std::ptr::null_mut())
+    })
+}
+
+/// 按词自动计算编码并添加为用户自造词
+/// word: UTF-8 词文本（首尾空白忽略）
+/// 返回：0=成功；1=无法编码（含非汉字 / 有字查不到编码）；2=已存在（码表已有该词或已有同码同词自造词）；
+/// -1=word 为 NULL、引擎未初始化或内部错误
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ffi_add_custom_word(word: *const c_char) -> i32 {
+    ffi_guard(
+        || -1,
+        || {
+            if word.is_null() {
+                return -1;
+            }
+            let word = unsafe { CStr::from_ptr(word) }.to_string_lossy();
+            with_engine(-1, |e| match e.add_custom_word(word.trim()) {
+                Ok(_) => 0,
+                Err(AddWordError::Unencodable) => 1,
+                Err(AddWordError::Exists) => 2,
+            })
+        },
+    )
+}
+
+/// 删除一条用户自造词（按词 + 编码；词频学习条目不受影响）
+/// 删除成功返回 true；未找到、参数为 NULL 或引擎未初始化返回 false
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ffi_remove_custom_word(word: *const c_char, code: *const c_char) -> bool {
+    ffi_guard(
+        || false,
+        || {
+            if word.is_null() || code.is_null() {
+                return false;
+            }
+            let word = unsafe { CStr::from_ptr(word) }.to_string_lossy();
+            let code = unsafe { CStr::from_ptr(code) }.to_string_lossy();
+            with_engine(false, |e| e.remove_custom_word(&word, &code))
+        },
+    )
+}
+
+/// 列出全部用户自造词，按编码排序，以 JSON 数组字符串返回：
+/// `[{"text":"晗戈","code":"jfag"}, ...]`（无自造词时为 `[]`）
+/// 引擎未初始化时返回 NULL。返回的字符串需要调用 ffi_free_string 释放
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_list_custom_words() -> *mut c_char {
+    ffi_guard(std::ptr::null_mut, || {
+        let Some(words) = with_engine(None, |e| Some(e.custom_words())) else {
+            return std::ptr::null_mut();
+        };
+        let list: Vec<serde_json::Value> = words
+            .into_iter()
+            .map(|(text, code)| serde_json::json!({ "text": text, "code": code }))
+            .collect();
+        let json = serde_json::to_string(&list).unwrap_or_else(|_| "[]".to_string());
+        CString::new(json).unwrap_or_default().into_raw()
     })
 }
 
@@ -637,6 +845,94 @@ mod tests {
         let second = unsafe { ffi_init(c_path.as_ptr()) };
         assert_eq!(second, first);
         assert_eq!(with_engine(0, |e| e.user_dict().entry_count()), 1);
+
+        clear_engine();
+    }
+
+    fn take_string(p: *mut c_char) -> Option<String> {
+        if p.is_null() {
+            return None;
+        }
+        let s = unsafe { CStr::from_ptr(p) }.to_string_lossy().into_owned();
+        unsafe { ffi_free_string(p) };
+        Some(s)
+    }
+
+    #[test]
+    fn association_ffi_roundtrip() {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        clear_engine();
+        assert!(!ffi_is_associating());
+        ffi_set_association(true);
+
+        let mut dict = DictEngine::new();
+        dict.load_from_str("a\t中\t9\naa\t中国\t8\n");
+        let engine = InputEngine::new(dict, UserDict::new(), Config::default());
+        *ENGINE.lock().unwrap_or_else(|p| p.into_inner()) = Some(engine);
+
+        // 默认关：上屏后不进入联想
+        let _ = ffi_handle_key(b'a' as c_char);
+        let r = ffi_handle_space();
+        assert!(matches!(r.action, FfiAction::Commit));
+        unsafe { ffi_free_string(r.text) };
+        assert!(!ffi_is_associating());
+
+        ffi_set_association(true);
+        let _ = ffi_handle_key(b'a' as c_char);
+        let r = ffi_handle_space();
+        unsafe { ffi_free_string(r.text) };
+        assert!(ffi_is_associating());
+        assert!(buffer_is_empty());
+        let list = ffi_get_candidates();
+        assert_eq!(list.count, 1);
+        let c = unsafe { &*list.candidates };
+        assert_eq!(unsafe { CStr::from_ptr(c.text) }.to_str().unwrap(), "国");
+        assert_eq!(unsafe { CStr::from_ptr(c.code) }.to_str().unwrap(), "");
+        ffi_free_candidate_list(list);
+        assert!(ffi_get_candidate_hint(0).is_null());
+        assert!(matches!(ffi_handle_escape().action, FfiAction::Reset));
+        assert!(!ffi_is_associating());
+
+        clear_engine();
+    }
+
+    #[test]
+    fn custom_word_ffi_roundtrip() {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        clear_engine();
+        let w = CString::new("晗戈").unwrap();
+        // 引擎未初始化：安全默认值
+        assert_eq!(unsafe { ffi_add_custom_word(w.as_ptr()) }, -1);
+        assert!(take_string(ffi_list_custom_words()).is_none());
+        assert_eq!(unsafe { ffi_add_custom_word(std::ptr::null()) }, -1);
+
+        let mut dict = DictEngine::new();
+        dict.load_from_str("jfwk\t晗\t1\nagnt\t戈\t1\na\t工\t1\naaaa\t工\t1\n");
+        let engine = InputEngine::new(dict, UserDict::new(), Config::default());
+        *ENGINE.lock().unwrap_or_else(|p| p.into_inner()) = Some(engine);
+
+        assert_eq!(
+            take_string(unsafe { ffi_preview_word_code(w.as_ptr()) }).as_deref(),
+            Some("jfag")
+        );
+        let bad = CString::new("晗x").unwrap();
+        assert!(take_string(unsafe { ffi_preview_word_code(bad.as_ptr()) }).is_none());
+        assert_eq!(take_string(ffi_list_custom_words()).as_deref(), Some("[]"));
+
+        assert_eq!(unsafe { ffi_add_custom_word(w.as_ptr()) }, 0);
+        assert_eq!(unsafe { ffi_add_custom_word(w.as_ptr()) }, 2);
+        assert_eq!(unsafe { ffi_add_custom_word(bad.as_ptr()) }, 1);
+        let single = CString::new("工").unwrap();
+        assert_eq!(unsafe { ffi_add_custom_word(single.as_ptr()) }, 2);
+
+        let json = take_string(ffi_list_custom_words()).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v, serde_json::json!([{ "text": "晗戈", "code": "jfag" }]));
+
+        let code = CString::new("jfag").unwrap();
+        assert!(unsafe { ffi_remove_custom_word(w.as_ptr(), code.as_ptr()) });
+        assert!(!unsafe { ffi_remove_custom_word(w.as_ptr(), code.as_ptr()) });
+        assert_eq!(take_string(ffi_list_custom_words()).as_deref(), Some("[]"));
 
         clear_engine();
     }

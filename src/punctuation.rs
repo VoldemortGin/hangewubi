@@ -25,17 +25,16 @@ impl PunctuationConverter {
         simple_map.insert(';', '；');
         simple_map.insert('\\', '、');
         simple_map.insert('~', '～');
-        simple_map.insert('@', '＠');
-        simple_map.insert('#', '＃');
-        simple_map.insert('%', '％');
-        simple_map.insert('&', '＆');
-        simple_map.insert('*', '×');
+        simple_map.insert('@', '@');
+        simple_map.insert('#', '#');
+        simple_map.insert('%', '%');
+        simple_map.insert('&', '&');
+        simple_map.insert('*', '*');
         simple_map.insert('-', '－');
         simple_map.insert('_', '—');
-        simple_map.insert('+', '＋');
-        simple_map.insert('=', '＝');
+        simple_map.insert('+', '+');
+        simple_map.insert('=', '=');
         simple_map.insert('$', '￥');
-        simple_map.insert('^', '…');
 
         let mut pair_map = HashMap::new();
         // 成对标点
@@ -75,6 +74,11 @@ impl PunctuationConverter {
             '}' => return Some('｝'.to_string()),
             '>' => return Some('》'.to_string()),
             _ => {}
+        }
+
+        // 六点省略号（两个省略号字符）
+        if ch == '^' {
+            return Some("……".to_string());
         }
 
         // 简单映射
@@ -126,6 +130,17 @@ impl PunctuationConverter {
     }
 }
 
+/// 半角 ASCII 可打印字符转全角：U+0021–U+007E → U+FF01–U+FF5E，空格 → U+3000；其余原样
+pub fn to_full_width(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            ' ' => '\u{3000}',
+            '!'..='~' => char::from_u32(c as u32 + 0xFEE0).unwrap_or(c),
+            _ => c,
+        })
+        .collect()
+}
+
 impl Default for PunctuationConverter {
     fn default() -> Self {
         Self::new()
@@ -137,6 +152,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_to_full_width() {
+        assert_eq!(to_full_width("aZ09 !~"), "ａＺ０９\u{3000}！～");
+        assert_eq!(to_full_width("，。五"), "，。五");
+    }
+
+    #[test]
     fn test_simple_punctuation() {
         let mut converter = PunctuationConverter::new();
         assert_eq!(converter.convert(','), Some("，".to_string()));
@@ -145,6 +166,20 @@ mod tests {
         assert_eq!(converter.convert('!'), Some("！".to_string()));
         assert_eq!(converter.convert(':'), Some("：".to_string()));
         assert_eq!(converter.convert('$'), Some("￥".to_string()));
+    }
+
+    #[test]
+    fn test_half_width_symbols() {
+        let mut converter = PunctuationConverter::new();
+        for ch in ['@', '#', '%', '&', '+', '=', '*'] {
+            assert_eq!(converter.convert(ch), Some(ch.to_string()));
+        }
+    }
+
+    #[test]
+    fn test_caret_six_dots_ellipsis() {
+        let mut converter = PunctuationConverter::new();
+        assert_eq!(converter.convert('^'), Some("……".to_string()));
     }
 
     #[test]

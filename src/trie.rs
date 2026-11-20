@@ -55,6 +55,18 @@ impl Trie {
     }
 
     /// Z键万能键匹配：z 可替代任意字母
+    /// 是否存在以 prefix 为前缀的编码（节点只由 insert 创建，存在即其下必有条目）
+    pub fn has_prefix(&self, prefix: &str) -> bool {
+        let mut node = &self.root;
+        for &byte in prefix.as_bytes() {
+            match node.children.get(&byte) {
+                Some(child) => node = child,
+                None => return false,
+            }
+        }
+        true
+    }
+
     pub fn wildcard_match(&self, pattern: &str) -> Vec<usize> {
         let mut results = Vec::new();
         Self::wildcard_search(&self.root, pattern.as_bytes(), 0, &mut results);

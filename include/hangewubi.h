@@ -93,6 +93,31 @@ struct FfiResult ffi_prev_page(void);
 // 切换中英文模式
 void ffi_toggle_mode(void);
 
+// 切换中/英文标点，返回新状态（true=中文标点，默认）
+bool ffi_toggle_chinese_punct(void);
+
+// 查询当前是否中文标点（true=中文标点）
+bool ffi_get_chinese_punct(void);
+
+// 切换全角/半角，返回新状态（true=全角，默认半角）
+bool ffi_toggle_full_width(void);
+
+// 查询当前是否全角（true=全角）
+bool ffi_get_full_width(void);
+
+// 切换繁体输出，返回新状态（true=繁体，默认简体）
+bool ffi_toggle_traditional(void);
+
+// 设置繁体输出（true=繁体）
+void ffi_set_traditional(bool enabled);
+
+// 查询当前是否繁体输出（true=繁体）
+bool ffi_get_traditional(void);
+
+// 取走并清除「最近一次按键因空码被拒绝且需提示音」标志
+// 返回 true 表示宿主应发出提示音；调用后标志复位
+bool ffi_take_beep(void);
+
 // 获取当前输入模式
 // 0=中文, 1=英文, 2=临时英文
 uint8_t ffi_get_mode(void);
@@ -104,6 +129,52 @@ char *ffi_get_buffer(void);
 // 获取候选列表
 // 返回的列表需要调用 ffi_free_candidate_list 释放
 struct FfiCandidateList ffi_get_candidates(void);
+
+// 获取当前页第 index 个候选（与 ffi_get_candidates 同序，从 0 起）的编码提示
+// 即完整编码去掉已输入前缀后的剩余编码；z 通配候选为其完整编码。
+// 无提示（精确匹配）、序号越界或引擎未初始化时返回 NULL。
+// 返回的字符串需要调用 ffi_free_string 释放
+char *ffi_get_candidate_hint(size_t index);
+
+// 设置逐码提示开关：true=显示前缀匹配补充候选并带编码提示（默认）；false=只显示精确匹配
+void ffi_set_code_hint(bool enabled);
+
+// 设置「仅常用字」开关：true=过滤含 GB2312 之外汉字的候选；false=显示全部（默认）
+void ffi_set_common_chars_only(bool enabled);
+
+// 设置「自动造词」开关：true=连续逐字上屏的码表外 2–4 字词组出现第 2 次时自动入库为自造词；false=关闭（默认）
+void ffi_set_auto_phrase(bool enabled);
+
+// 设置「词语联想」开关：true=五笔上屏汉字后候选列出以其开头的更长词的后续部分；false=关闭（默认）
+void ffi_set_association(bool enabled);
+
+// 查询当前是否处于词语联想态（编码缓冲为空，但 ffi_get_candidates 返回联想候选）。
+// 联想关闭或引擎未初始化时恒为 false
+bool ffi_is_associating(void);
+
+// 通知引擎「发生了引擎看不到的打断」（如无编码时直通给应用的方向键 / 快捷键 / Tab），
+// 清空自动造词的连续上屏序列。未开启自动造词时调用无副作用
+void ffi_break_auto_phrase(void);
+
+// 预览某词按五笔 86 词组规则自动计算的编码（供界面显示）
+// word: UTF-8 词文本。无法编码（含非汉字 / 有字查不到编码）、word 为 NULL 或引擎未初始化时返回 NULL。
+// 返回的字符串需要调用 ffi_free_string 释放
+char *ffi_preview_word_code(const char *word);
+
+// 按词自动计算编码并添加为用户自造词
+// word: UTF-8 词文本（首尾空白忽略）
+// 返回：0=成功；1=无法编码（含非汉字 / 有字查不到编码）；2=已存在（码表已有该词或已有同码同词自造词）；
+// -1=word 为 NULL、引擎未初始化或内部错误
+int32_t ffi_add_custom_word(const char *word);
+
+// 删除一条用户自造词（按词 + 编码；词频学习条目不受影响）
+// 删除成功返回 true；未找到、参数为 NULL 或引擎未初始化返回 false
+bool ffi_remove_custom_word(const char *word, const char *code);
+
+// 列出全部用户自造词，按编码排序，以 JSON 数组字符串返回：
+// `[{"text":"晗戈","code":"jfag"}, ...]`（无自造词时为 `[]`）
+// 引擎未初始化时返回 NULL。返回的字符串需要调用 ffi_free_string 释放
+char *ffi_list_custom_words(void);
 
 // 释放 FFI 返回的字符串
 void ffi_free_string(char *s);
