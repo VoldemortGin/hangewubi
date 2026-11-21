@@ -38,6 +38,10 @@
                 <string>zh-Hans</string>
                 <key>tsInputModeMenuIconTextKey</key>
                 <string>晗</string>
+                <key>tsInputModeMenuIconFileKey</key>
+                <string>icon.png</string>
+                <key>tsInputModePaletteIconFileKey</key>
+                <string>icon.png</string>
                 <key>tsInputModeDefaultStateKey</key>
                 <true/>
                 <key>tsInputModePrimaryInScriptKey</key>
