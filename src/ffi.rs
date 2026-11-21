@@ -369,6 +369,17 @@ pub extern "C" fn ffi_get_chinese_punct() -> bool {
     ffi_guard(|| true, || with_engine(true, |e| e.chinese_punct()))
 }
 
+/// 设置中/英文标点（true=中文标点）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_set_chinese_punct(enabled: bool) {
+    ffi_guard(
+        || (),
+        || {
+            with_engine((), |e| e.set_chinese_punct(enabled));
+        },
+    );
+}
+
 /// 切换全角/半角，返回新状态（true=全角，默认半角）
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_toggle_full_width() -> bool {
@@ -782,6 +793,18 @@ mod tests {
 
     fn buffer_is_empty() -> bool {
         with_engine(true, |e| e.buffer().is_empty())
+    }
+
+    #[test]
+    fn set_chinese_punct_roundtrip() {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        install_test_engine();
+        assert!(ffi_get_chinese_punct(), "默认中文标点");
+        ffi_set_chinese_punct(false);
+        assert!(!ffi_get_chinese_punct());
+        ffi_set_chinese_punct(true);
+        assert!(ffi_get_chinese_punct());
+        clear_engine();
     }
 
     // 拼音文件缺失（纯五笔版）时初始化仍成功、无拼音、z 走万能键；带拼音文件则 has_pinyin 为 true。

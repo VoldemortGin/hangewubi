@@ -102,6 +102,9 @@ bool ffi_toggle_chinese_punct(void);
 // 查询当前是否中文标点（true=中文标点）
 bool ffi_get_chinese_punct(void);
 
+// 设置中/英文标点（true=中文标点）
+void ffi_set_chinese_punct(bool enabled);
+
 // 切换全角/半角，返回新状态（true=全角，默认半角）
 bool ffi_toggle_full_width(void);
 

@@ -63,6 +63,7 @@ class HangeWubiSettings {
             "autoPhrase": false,
             "association": false,
             "traditionalOutput": false,
+            "chinesePunct": true,
             "emptyCodeAction": 0,
             "enterKeyAction": 0,
             // Basic - Candidates
@@ -122,6 +123,12 @@ class HangeWubiSettings {
     var traditionalOutput: Bool {
         get { defaults.bool(forKey: "traditionalOutput") }
         set { defaults.set(newValue, forKey: "traditionalOutput") }
+    }
+
+    /// true=中文标点（默认），false=英文标点（半角）
+    var chinesePunct: Bool {
+        get { defaults.bool(forKey: "chinesePunct") }
+        set { defaults.set(newValue, forKey: "chinesePunct") }
     }
 
     var emptyCodeAction: Int {
@@ -257,6 +264,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
     private var bracketPageFlipCheck: NSButton!
     private var toggleChineseEnglishPopup: NSPopUpButton!
     private var showModeIndicatorCheck: NSButton!
+    private var englishPunctCheck: NSButton!
     private var candidateFontSizePopup: NSPopUpButton!
     private var firstCandidateColorPopup: NSPopUpButton!
 
@@ -275,6 +283,9 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         self.isReleasedWhenClosed = false
         self.center()
         setupUI()
+        // 快捷键 / 菜单切换标点后，设置窗口开着时同步勾选状态
+        NotificationCenter.default.addObserver(self, selector: #selector(refreshControlStates),
+                                               name: .hangeWubiConfigChanged, object: nil)
     }
 
     // MARK: - UI Construction
@@ -334,11 +345,11 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         scrollView.autoresizingMask = [.width, .height]
         scrollView.drawsBackground = false
 
-        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 730))
+        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 760))
         scrollView.documentView = contentView
 
         let settings = HangeWubiSettings.shared
-        var y: CGFloat = 730
+        var y: CGFloat = 760
 
         // --- Section: 编码 ---
         y -= 10
@@ -421,7 +432,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         y -= 16
 
         // --- Section: 状态切换 ---
-        y = addSectionBox(to: contentView, title: "状态切换", y: y, height: 100) { box, startY in
+        y = addSectionBox(to: contentView, title: "状态切换", y: y, height: 130) { box, startY in
             var innerY = startY
 
             self.toggleChineseEnglishPopup = self.addDropdownRow(
@@ -432,6 +443,10 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
             self.showModeIndicatorCheck = self.addCheckbox(
                 to: box, title: "切换状态时，在光标处提示中英文状态", y: &innerY,
                 checked: settings.showModeIndicator, action: #selector(self.showModeIndicatorChanged(_:)))
+
+            self.englishPunctCheck = self.addCheckbox(
+                to: box, title: "使用英文标点（半角）", y: &innerY,
+                checked: !settings.chinesePunct, action: #selector(self.englishPunctChanged(_:)))
         }
 
         return scrollView
@@ -802,6 +817,12 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         notifyEngineConfigChanged()
     }
 
+    @objc private func englishPunctChanged(_ sender: NSButton) {
+        HangeWubiSettings.shared.chinesePunct = sender.state != .on
+        debugLog("Setting chinesePunct = \(sender.state != .on)")
+        notifyEngineConfigChanged()
+    }
+
     @objc private func emptyCodeActionChanged(_ sender: NSPopUpButton) {
         HangeWubiSettings.shared.emptyCodeAction = sender.indexOfSelectedItem
         debugLog("Setting emptyCodeAction = \(sender.indexOfSelectedItem)")
@@ -893,7 +914,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
 
     // MARK: - Refresh & Show
 
-    private func refreshControlStates() {
+    @objc private func refreshControlStates() {
         let s = HangeWubiSettings.shared
         autoCommitUnique4Check.state = s.autoCommitUnique4 ? .on : .off
         autoCommitFirst5Check.state = s.autoCommitFirst5 ? .on : .off
@@ -916,6 +937,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         bracketPageFlipCheck.state = s.bracketPageFlip ? .on : .off
         toggleChineseEnglishPopup.selectItem(at: s.toggleChineseEnglish)
         showModeIndicatorCheck.state = s.showModeIndicator ? .on : .off
+        englishPunctCheck.state = s.chinesePunct ? .off : .on
         candidateFontSizePopup.selectItem(at: s.candidateFontSize)
         firstCandidateColorPopup.selectItem(at: s.firstCandidateColor)
     }
@@ -1382,6 +1404,7 @@ class InputController: IMKInputController {
         ffi_set_code_hint(s.progressiveHint)
         ffi_set_common_chars_only(s.commonCharsOnly)
         ffi_set_traditional(s.traditionalOutput)
+        ffi_set_chinese_punct(s.chinesePunct)
         ffi_set_auto_phrase(s.autoPhrase)
         ffi_set_association(s.association)
         debugLog("syncConfigToEngine: unique4=\(s.autoCommitUnique4) first5=\(s.autoCommitFirst5) enter=\(s.enterKeyAction) empty=\(s.emptyCodeAction) count=\(s.candidateCountValue) pinyinMixed=\(s.pinyinMixedEnabled) codeHint=\(s.progressiveHint) commonOnly=\(s.commonCharsOnly) traditional=\(s.traditionalOutput)")
@@ -1690,10 +1713,12 @@ class InputController: IMKInputController {
         ModeIndicatorWindow.shared.show(text: text, near: cursorRect)
     }
 
-    /// 切换中/英文标点（状态在引擎），弹提示
-    private func toggleChinesePunct(client: IMKTextInput) {
+    /// 切换中/英文标点（引擎持有状态，同时写入设置以跨重启持久化并刷新设置窗口），弹提示
+    private func toggleChinesePunct(client: IMKTextInput?) {
         let isChinese = ffi_toggle_chinese_punct()
-        showHint(isChinese ? "。，" : ".,", client: client)
+        HangeWubiSettings.shared.chinesePunct = isChinese
+        NotificationCenter.default.post(name: .hangeWubiConfigChanged, object: nil)
+        if let client = client { showHint(isChinese ? "。，" : ".,", client: client) }
     }
 
     /// 切换全角/半角（状态在引擎），弹提示
@@ -1714,8 +1739,7 @@ class InputController: IMKInputController {
     }
 
     @objc private func menuToggleChinesePunct(_ sender: Any?) {
-        guard let client = client() as? IMKTextInput else { _ = ffi_toggle_chinese_punct(); return }
-        toggleChinesePunct(client: client)
+        toggleChinesePunct(client: client() as? IMKTextInput)
     }
 
     @objc private func menuToggleFullWidth(_ sender: Any?) {

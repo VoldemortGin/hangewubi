@@ -167,6 +167,11 @@ impl InputEngine {
         self.punctuation.enabled
     }
 
+    /// 设置中/英文标点（true=中文标点）
+    pub fn set_chinese_punct(&mut self, enabled: bool) {
+        self.punctuation.enabled = enabled;
+    }
+
     /// 当前是否中文标点
     pub fn chinese_punct(&self) -> bool {
         self.punctuation.enabled
@@ -232,6 +237,13 @@ impl InputEngine {
             other => other,
         };
         text.map(|t| self.width(&t))
+    }
+
+    /// 顶字上屏后附带的标点：英文标点状态下，标点集合外的 ASCII 符号（`` ` `` `|` `/`）也要带上，不得丢字符
+    fn trailing_punct(&mut self, ch: char) -> Option<String> {
+        self.punct_text(ch).or_else(|| {
+            (!self.punctuation.enabled && ch.is_ascii_graphic()).then(|| ch.to_string())
+        })
     }
 
     /// 取走并清除「空码拒绝需提示音」标志
@@ -598,7 +610,7 @@ impl InputEngine {
                 let committed = self.output_text(&candidate.text);
                 self.reset();
                 // 然后转换标点
-                if let Some(punct) = self.punct_text(ch) {
+                if let Some(punct) = self.trailing_punct(ch) {
                     return EngineAction::Commit(format!("{}{}", committed, punct));
                 }
                 return EngineAction::Commit(committed);
@@ -606,7 +618,7 @@ impl InputEngine {
             // 有码但零候选：先清空脏码，再上屏标点，避免残留
             self.break_phrase_seq();
             self.reset();
-            if let Some(punct) = self.punct_text(ch) {
+            if let Some(punct) = self.trailing_punct(ch) {
                 return EngineAction::Commit(punct);
             }
             return EngineAction::Reset;
@@ -650,6 +662,11 @@ impl InputEngine {
             return self.handle_punctuation(';');
         }
 
+        // 英文标点状态：无编码时 `;` 就是半角分号，不引导临时英文
+        if !self.punctuation.enabled {
+            return self.handle_punctuation(';');
+        }
+
         // 进入临时英文模式
         self.break_phrase_seq();
         self.mode = InputMode::TempEnglish;
@@ -675,6 +692,10 @@ impl InputEngine {
             let index = self.current_page * self.config.candidate_count + 2;
             if index < self.candidates.len() {
                 return self.select_candidate(index);
+            }
+            // 英文标点状态：候选不足时 `'` 按半角标点输出
+            if !self.punctuation.enabled {
+                return self.handle_punctuation('\'');
             }
             // 候选不足 3 个，不处理
             self.break_phrase_seq();
@@ -1967,6 +1988,88 @@ e\t鹅\t9000
         assert_eq!(
             engine.handle_punctuation(','),
             EngineAction::Commit("，".to_string())
+        );
+    }
+
+    /// 按 macOS 宿主分发驱动一个 ASCII 标点键：`;` / `'` 走各自入口，其余走 handle_punctuation
+    fn press_punct_key(engine: &mut InputEngine, ch: char) -> EngineAction {
+        match ch {
+            ';' => engine.handle_semicolon(),
+            '\'' => engine.handle_quote(),
+            _ => engine.handle_punctuation(ch),
+        }
+    }
+
+    #[test]
+    fn test_english_punct_all_ascii_symbols_half_width() {
+        const KEYS: &str = "`~!@#$%^&*()-_=+[]{}\\|;:'\",<.>/?";
+        assert_eq!(KEYS.chars().count(), 32);
+        for ch in KEYS.chars() {
+            // (a) 无在途编码：最终上屏即字符本身（Unhandled = 放行，应用收到原 ASCII 键）
+            let mut engine = create_test_engine();
+            engine.set_chinese_punct(false);
+            match press_punct_key(&mut engine, ch) {
+                EngineAction::Commit(t) => assert_eq!(t, ch.to_string(), "(a) key={ch}"),
+                EngineAction::Unhandled => {}
+                other => panic!("(a) key={ch}: {other:?}"),
+            }
+            assert_eq!(engine.mode(), InputMode::Chinese, "(a) key={ch}");
+
+            // (b) 有在途编码且有候选：顶字首选 + 半角标点；`;` `'` 仍用于选第 2/3 候选
+            let mut dict = DictEngine::new();
+            dict.load_from_str("a\t工\t9999\n");
+            let mut engine = InputEngine::new(dict, UserDict::new(), Config::default());
+            engine.set_chinese_punct(false);
+            engine.handle_key('a');
+            assert_eq!(engine.candidates().len(), 1);
+            // （`;` `'` 候选不足时同样顶字首选 + 半角字符）
+            assert_eq!(
+                press_punct_key(&mut engine, ch),
+                EngineAction::Commit(format!("工{ch}")),
+                "(b) key={ch}"
+            );
+
+            // 有码但零候选：只上屏该标点
+            let mut engine = create_test_engine();
+            engine.set_chinese_punct(false);
+            engine.config.empty_code_action = 2;
+            for c in "abp".chars() {
+                engine.handle_key(c);
+            }
+            assert!(engine.candidates().is_empty());
+            if let EngineAction::Commit(t) = press_punct_key(&mut engine, ch) {
+                assert_eq!(t, ch.to_string(), "(b0) key={ch}");
+            } else {
+                panic!("(b0) key={ch}");
+            }
+        }
+        // (c) 数字后的 `.`
+        let mut engine = create_test_engine();
+        engine.set_chinese_punct(false);
+        engine.handle_number(3);
+        assert_eq!(
+            engine.handle_punctuation('.'),
+            EngineAction::Commit(".".into())
+        );
+
+        // 引号状态机不介入也不被推进：两次 `"` 得两个 `"`，切回中文标点先出左引号
+        let mut engine = create_test_engine();
+        engine.set_chinese_punct(false);
+        for _ in 0..2 {
+            assert_eq!(
+                engine.handle_punctuation('"'),
+                EngineAction::Commit("\"".into())
+            );
+            assert_eq!(engine.handle_quote(), EngineAction::Commit("'".into()));
+        }
+        engine.set_chinese_punct(true);
+        assert_eq!(
+            engine.handle_punctuation('"'),
+            EngineAction::Commit("\u{201c}".into())
+        );
+        assert_eq!(
+            engine.handle_quote(),
+            EngineAction::Commit("\u{2018}".into())
         );
     }
 
