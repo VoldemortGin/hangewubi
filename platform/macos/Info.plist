@@ -69,6 +69,8 @@
     <string>NSApplication</string>
     <key>TISInputSourceID</key>
     <string>com.hangewubi.inputmethod.HangeWubi</string>
+    <key>TISIconIsTemplate</key>
+    <true/>
     <key>TISIntendedLanguage</key>
     <string>zh-Hans</string>
     <key>tsInputMethodIconFileKey</key>

@@ -245,6 +245,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
     static let shared = PreferencesWindow()
 
     private var tabView: NSTabView!
+    private var basicScrollView: NSScrollView!
 
     // Controls that need state refresh
     private var autoCommitUnique4Check: NSButton!
@@ -344,6 +345,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         scrollView.hasVerticalScroller = true
         scrollView.autoresizingMask = [.width, .height]
         scrollView.drawsBackground = false
+        basicScrollView = scrollView
 
         let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 760))
         scrollView.documentView = contentView
@@ -640,6 +642,15 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         if (tabViewItem?.identifier as? String) == "userDict" {
             reloadUserWords()
         }
+        scrollBasicTabToTop()
+    }
+
+    /// documentView 未翻转（原点在左下），默认停在底部；显示后手动滚到顶部。
+    private func scrollBasicTabToTop() {
+        guard let doc = basicScrollView?.documentView else { return }
+        basicScrollView.layoutSubtreeIfNeeded()
+        doc.scroll(NSPoint(x: 0, y: doc.bounds.height))
+        basicScrollView.reflectScrolledClipView(basicScrollView.contentView)
     }
 
     // MARK: - About Tab
@@ -947,6 +958,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         reloadUserWords()
         self.center()
         self.makeKeyAndOrderFront(nil)
+        scrollBasicTabToTop()
         NSApp.activate(ignoringOtherApps: true)
     }
 }
