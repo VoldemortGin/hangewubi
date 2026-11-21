@@ -38,12 +38,35 @@ MIT 许可证要求保留的版权声明：
 ### 2. 拼音码表
 
 - 路径：`data/pinyin.txt`、`platform/android/app/src/main/assets/data/pinyin.txt`
-- 上游（文件头标注两个来源）：
-  - rime-pinyin-simp，https://github.com/rime/rime-pinyin-simp ：Apache-2.0。依据：上游仓库 LICENSE 文件，GitHub 识别为 Apache License 2.0。
-  - rime-luna-pinyin，https://github.com/rime/rime-luna-pinyin ：LGPL-3.0。依据：上游仓库 LICENSE 文件，GitHub 识别为 GNU Lesser General Public License v3.0；其 README 写明「授權條款：見 LICENSE」。
-- 本项目处理：合并两个来源并转换为「拼音 汉字 权重」格式，共 119004 条（见文件头）。
-- 许可证全文：Apache-2.0 见根目录 `LICENSE`；LGPL-3.0 见 `LICENSES/LGPL-3.0.txt`。
-- 说明：文件头未标明每个条目具体来自哪个上游，故整份文件按两个上游许可证同时声明。
+- 生成脚本：`scripts/build_pinyin_dict.py`（按钉死的提交 SHA 下载上游文件并校验 SHA-256，输出完全由下列两个上游生成，可复现）。
+- 上游一：rime-pinyin-simp，https://github.com/rime/rime-pinyin-simp ，提交 `0c6861ef7420ee780270ca6d993d18d4101049d0`。上游许可证：Apache-2.0（上游仓库 LICENSE 文件）。其数据源自 Android Open Source Project 的 PinyinIME。提供字、词与词频，为本文件主体。
+- 上游二：pinyin-data (mozillazg)，https://github.com/mozillazg/pinyin-data ，提交 `fe29ad32bdf352b31a02b9936e537f575432e9a6`，仅使用根目录 `pinyin.txt`。上游许可证：MIT。其数据来自 Unicode Unihan 数据库，适用 Unicode License V3。仅用于补充上游一缺少的「字 + 读音」组合（权重 1）。
+- 本项目处理：转换为「拼音 汉字 权重」格式（去声调、ü 写作 v、词的拼音不带空格、词频对数缩放为权重），共 101379 条（见文件头）。
+- 许可证全文：Apache-2.0 见根目录 `LICENSE`；Unicode License V3 见 `LICENSES/Unicode-3.0.txt`；MIT 须保留的版权声明如下。
+
+pinyin-data 的 MIT 许可证要求保留的版权声明：
+
+    The MIT License (MIT)
+
+    Copyright (c) 2016 mozillazg
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 ### 3. 繁简单字转换表
 
