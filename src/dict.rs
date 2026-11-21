@@ -276,9 +276,13 @@ impl DictEngine {
             }
         }
 
-        // 再加前缀匹配（编码长度 > 输入长度）
+        // 再加前缀匹配（编码长度 > 输入长度）：只补充全为汉字的条目，
+        // 假名、希腊字母等符号条目只在输入完整编码时（精确匹配）出现
         for entry in &prefix {
-            if entry.code.len() > input.len() && seen.insert((&entry.code, &entry.text)) {
+            if entry.code.len() > input.len()
+                && entry.text.chars().all(crate::charset::is_han)
+                && seen.insert((&entry.code, &entry.text))
+            {
                 results.push(*entry);
             }
             if results.len() >= max_results {
@@ -474,6 +478,35 @@ bb\t子\t5500
         // 新增词条后索引失效重建
         dict.add_entry("d".into(), "中间".into(), 1);
         assert_eq!(texts(&dict, "中"), ["中国", "中国", "中国人", "中间"]);
+    }
+
+    #[test]
+    fn test_prefix_supplement_only_han() {
+        let mut dict = DictEngine::new();
+        dict.load_from_str(
+            "c\t又\t100
+cojp\tァ\t890
+cojp\tア\t880
+copj\t①\t870
+cbcd\t骚\t500
+cojp\t𰀀\t10
+",
+        );
+        let texts = |code: &str| -> Vec<String> {
+            dict.lookup(code, false, 10)
+                .iter()
+                .map(|e| e.text.clone())
+                .collect()
+        };
+        // 前缀补充只带出全为汉字的条目（含扩展区汉字）
+        assert_eq!(texts("c"), vec!["又", "骚", "𰀀"]);
+        assert_eq!(texts("coj"), vec!["𰀀"]);
+        // 完整编码（精确匹配）仍能打出符号
+        assert_eq!(texts("cojp"), vec!["ァ", "ア", "𰀀"]);
+        assert_eq!(texts("copj"), vec!["①"]);
+        // 前缀存在性不受过滤影响
+        assert!(dict.has_prefix("co", false));
+        assert!(dict.has_prefix("cop", false));
     }
 
     #[test]

@@ -31,7 +31,7 @@ pub fn to_traditional(s: &str) -> String {
 /// 是否为汉字（CJK 统一表意文字及其扩展 / 兼容区）
 pub(crate) fn is_han(c: char) -> bool {
     matches!(c as u32,
-        0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF | 0x20000..=0x2FA1F)
+        0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF | 0x20000..=0x2FA1F | 0x30000..=0x323AF)
 }
 
 /// 单个汉字是否在 GB2312 内：编码为 GBK 后双字节，

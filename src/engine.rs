@@ -2931,6 +2931,32 @@ hhhh\t国\t8000
     }
 
     #[test]
+    fn test_symbol_code_prefix_not_empty_code() {
+        // 符号条目不进前缀补充，但其编码的中途前缀不得被判空码；输完整编码仍出符号
+        let mut dict = DictEngine::new();
+        dict.load_from_str(
+            "c\t又\t100
+cojp\tア\t880
+",
+        );
+        let config = Config {
+            candidate_count: 5,
+            ..Config::default()
+        };
+        let mut engine = InputEngine::new(dict, UserDict::new(), config);
+        type_keys(&mut engine, "c");
+        assert_eq!(texts(&engine), vec!["又"]);
+        for (key, buf) in [('o', "co"), ('j', "coj")] {
+            engine.handle_key(key);
+            assert_eq!(engine.mode(), InputMode::Chinese);
+            assert_eq!(engine.buffer(), buf);
+            assert!(engine.candidates().is_empty());
+        }
+        // cojp 唯一候选，满四码自动上屏
+        assert_eq!(engine.handle_key('p'), EngineAction::Commit("ア".into()));
+    }
+
+    #[test]
     fn test_common_chars_filters_temp_pinyin() {
         let mut dict = DictEngine::new();
         dict.load_from_str("a\t工\t9999\n");
