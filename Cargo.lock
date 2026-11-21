@@ -185,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "hangewubi"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "cbindgen",
  "encoding_rs",
