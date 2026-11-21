@@ -3,7 +3,7 @@
 # 来源：rime-pinyin-simp（Apache-2.0，0c6861ef7420）
 # 来源：mozillazg/pinyin-data（MIT，数据源自 Unicode Unihan，fe29ad32bdf3）
 # 由 scripts/build_pinyin_dict.py 生成，请勿手工编辑
-# 条目数：101379
+# 条目数：101462
 de	的	9999
 le	了	9240
 wo	我	9091
@@ -1609,6 +1609,7 @@ zhiyu	至于	5841
 chukou	出口	5840
 zhangwo	掌握	5840
 zhanlue	战略	5840
+zhanlve	战略	5840
 fangxin	放心	5839
 duan	段	5838
 haokan	好看	5838
@@ -2287,6 +2288,7 @@ xiede	写的	5599
 niye	你也	5598
 shehuizhuyi	社会主义	5598
 celue	策略	5597
+celve	策略	5597
 dai	代	5597
 di	底	5596
 shuchu	输出	5596
@@ -4613,6 +4615,7 @@ zuiai	最爱	5093
 chai	拆	5092
 duihuan	兑换	5092
 hulue	忽略	5092
+hulve	忽略	5092
 ji	吉	5092
 pijiu	啤酒	5092
 qianjing	前景	5092
@@ -5531,6 +5534,7 @@ quanyi	权益	4953
 benben	本本	4952
 jieyue	节约	4952
 lue	略	4952
+lve	略	4952
 nageren	那个人	4952
 nianlai	年来	4952
 shashou	杀手	4952
@@ -6636,6 +6640,7 @@ niannei	年内	4807
 qiquan	齐全	4807
 chunjie	纯洁	4806
 gonglue	攻略	4806
+gonglve	攻略	4806
 huagong	化工	4806
 miaoxie	描写	4806
 qinglv	情侣	4806
@@ -10777,6 +10782,7 @@ zhongdong	中东	4404
 chuangei	传给	4403
 feidei	非得	4403
 lueyou	略有	4403
+lveyou	略有	4403
 she	舌	4403
 taishan	泰山	4403
 yuzhongbutong	与众不同	4403
@@ -11294,6 +11300,7 @@ lijing	历经	4364
 luan	卵	4364
 meiwei	每位	4364
 nuedai	虐待	4364
+nvedai	虐待	4364
 renweiziji	认为自己	4364
 shayisi	啥意思	4364
 shenmeyuanyin	什么原因	4364
@@ -11768,6 +11775,7 @@ duoqu	夺取	4329
 emeng	噩梦	4329
 fashu	法术	4329
 fazhanzhanlue	发展战略	4329
+fazhanzhanlve	发展战略	4329
 fengwei	风味	4329
 gaopinzhi	高品质	4329
 gongming	共鸣	4329
@@ -11978,6 +11986,7 @@ naima	奶妈	4316
 niuniu	牛牛	4316
 qingsu	倾诉	4316
 qinlue	侵略	4316
+qinlve	侵略	4316
 tiyuguan	体育馆	4316
 wuzhi	唔知	4316
 xiaoche	小车	4316
@@ -12244,6 +12253,7 @@ jieshi	结实	4298
 jiugoule	就够了	4298
 milian	迷恋	4298
 nue	虐	4298
+nve	虐	4298
 qingche	清澈	4298
 shashi	啥事	4298
 tonggan	同感	4298
@@ -14912,6 +14922,7 @@ guanyong	管用	4135
 jiansu	减速	4135
 jiaoyuwang	教育网	4135
 linglue	领略	4135
+linglve	领略	4135
 meijiu	美酒	4135
 meiwan	每晚	4135
 menchuang	门窗	4135
@@ -16288,6 +16299,7 @@ qinhuangdao	秦皇岛	4066
 quanqiuzuida	全球最大	4066
 shangxiaban	上下班	4066
 shenglue	省略	4066
+shenglve	省略	4066
 shunqiziran	顺其自然	4066
 xianglin	相邻	4066
 xiangyong	想用	4066
@@ -16700,6 +16712,7 @@ keyao	可要	4044
 laoji	牢记	4044
 lueduo	掠夺	4044
 luolu	裸露	4044
+lveduo	掠夺	4044
 nihen	你很	4044
 qi	岂	4044
 qianshen	前身	4044
@@ -17192,6 +17205,7 @@ juyuan	剧院	4018
 laotouzi	老头子	4018
 limou	李某	4018
 luewei	略微	4018
+lvewei	略微	4018
 qingbai	清白	4018
 qingxin	轻信	4018
 renzhenxuexi	认真学习	4018
@@ -17938,6 +17952,7 @@ yebie	也别	3983
 yiqiwan	一起玩	3983
 yuanyuanchaoguo	远远超过	3983
 zhanluexing	战略性	3983
+zhanlvexing	战略性	3983
 zheyan	遮掩	3983
 zhier	之二	3983
 zhimen	之门	3983
@@ -17962,6 +17977,7 @@ laoniu	老牛	3982
 laozao	老早	3982
 luexian	略显	3982
 lunzi	轮子	3982
+lvexian	略显	3982
 manman	满满	3982
 pianpian	片片	3982
 ranse	染色	3982
@@ -18943,6 +18959,7 @@ keyou	可有	3936
 liujialing	刘嘉玲	3936
 liumangruanjian	流氓软件	3936
 luedai	略带	3936
+lvedai	略带	3936
 mingfuqishi	名副其实	3936
 nakuan	那款	3936
 quanxinquanyi	全心全意	3936
@@ -19777,6 +19794,7 @@ ketangjiaoxue	课堂教学	3899
 keyitigong	可以提供	3899
 kuang	况	3899
 lueguo	掠过	3899
+lveguo	掠过	3899
 mimihuhu	迷迷糊糊	3899
 moutian	某天	3899
 nagedifang	那个地方	3899
@@ -21968,6 +21986,7 @@ bujian	不减	3811
 chongfeng	重逢	3811
 chuangtai	窗台	3811
 culue	粗略	3811
+culve	粗略	3811
 dairen	待人	3811
 daoyong	盗用	3811
 dashang	搭上	3811
@@ -25074,6 +25093,7 @@ shoubule	受不了	3701
 shuli	书里	3701
 sihuan	四环	3701
 sinue	肆虐	3701
+sinve	肆虐	3701
 sixin	死心	3701
 suolie	所列	3701
 tanshuai	坦率	3701
@@ -25667,6 +25687,7 @@ youzi	游子	3681
 yunqi	孕期	3681
 zaoshui	早睡	3681
 zhanluemubiao	战略目标	3681
+zhanlvemubiao	战略目标	3681
 zhengwugongkai	政务公开	3681
 zhongchuang	重创	3681
 zhongdi	种地	3681
@@ -26732,6 +26753,7 @@ laolang	老狼	3643
 lianzi	莲子	3643
 liunian	流年	3643
 lue	掠	3643
+lve	掠	3643
 naxiaozi	那小子	3643
 niuyang	牛羊	3643
 paiqi	排气	3643
@@ -28085,6 +28107,7 @@ zhengquanjiaoyi	证券交易	3601
 zhishi	指使	3601
 zhongxibu	中西部	3601
 zinue	自虐	3601
+zinve	自虐	3601
 zuoqiang	做强	3601
 baofang	包房	3599
 baojianhui	保监会	3599
@@ -29424,6 +29447,7 @@ tianhao	填好	3562
 tiaowang	眺望	3562
 tizi	梯子	3562
 touzicelue	投资策略	3562
+touzicelve	投资策略	3562
 tuilun	推论	3562
 woshini	我是你	3562
 xian	纤	3562
@@ -31081,6 +31105,7 @@ fadianchang	发电厂	3511
 fahong	发红	3511
 fangdajing	放大镜	3511
 fanglue	方略	3511
+fanglve	方略	3511
 fanzuixingwei	犯罪行为	3511
 fenfan	纷繁	3511
 fengtaiqu	丰台区	3511
@@ -33422,6 +33447,7 @@ shineisheji	室内设计	3447
 shiran	释然	3447
 siyou	似有	3447
 suoluetu	缩略图	3447
+suolvetu	缩略图	3447
 taoming	逃命	3447
 touqie	偷窃	3447
 tourongzi	投融资	3447
@@ -33566,6 +33592,7 @@ youhuilaile	又回来了	3444
 yuedong	越冬	3444
 zaiwu	再无	3444
 zhanluehezuo	战略合作	3444
+zhanlvehezuo	战略合作	3444
 zhanyongkongjian	占用空间	3444
 zhaokan	照看	3444
 zhefan	这番	3444
@@ -34061,6 +34088,7 @@ mianli	勉励	3427
 minqing	民情	3427
 mougongsi	某公司	3427
 moulue	谋略	3427
+moulve	谋略	3427
 nadaer	纳达尔	3427
 nannai	难耐	3427
 nianyefan	年夜饭	3427
@@ -34222,6 +34250,7 @@ xinji	心计	3424
 yanzhonghouguo	严重后果	3424
 yiliaobaozhang	医疗保障	3424
 yingxiaocelue	营销策略	3424
+yingxiaocelve	营销策略	3424
 youzhuan	右转	3424
 yulin	雨林	3424
 zhangdao	长到	3424
@@ -34292,6 +34321,7 @@ nvzuojia	女作家	3421
 pumie	扑灭	3421
 qingjinkuai	请尽快	3421
 qinluezhe	侵略者	3421
+qinlvezhe	侵略者	3421
 quanyuan	全院	3421
 renzhun	认准	3421
 saima	赛马	3421
@@ -36766,6 +36796,7 @@ nongyejixie	农业机械	3357
 paowan	跑完	3357
 pingfu	平复	3357
 pinpaizhanlue	品牌战略	3357
+pinpaizhanlve	品牌战略	3357
 pishi	屁事	3357
 pu	葡	3357
 puzi	铺子	3357
@@ -37075,6 +37106,7 @@ qingliji	请立即	3349
 qiren	气人	3349
 qizai	骑在	3349
 quangonglue	全攻略	3349
+quangonglve	全攻略	3349
 quanzhoushi	泉州市	3349
 quchenshi	屈臣氏	3349
 quewei	缺位	3349
@@ -38526,6 +38558,7 @@ yuwanyuan	余万元	3315
 yuxi	预习	3315
 zhangdan	帐单	3315
 zhanluesixiang	战略思想	3315
+zhanlvesixiang	战略思想	3315
 zhejiangren	浙江人	3315
 zhendeai	真的爱	3315
 zhengceguiding	政策规定	3315
@@ -40212,6 +40245,7 @@ zhale	炸了	3274
 zhanghua	张华	3274
 zhangzhong	掌中	3274
 zhanlueguihua	战略规划	3274
+zhanlveguihua	战略规划	3274
 zhenzhong	震中	3274
 zhici	之词	3274
 zhiduoshao	知多少	3274
@@ -40765,6 +40799,7 @@ zhujun	朱骏	3261
 zichan	自产	3261
 zouxiu	走秀	3261
 zucelue	组策略	3261
+zucelve	组策略	3261
 zuihen	最恨	3261
 zuotu	做图	3261
 zuoxia	左下	3261
@@ -45868,6 +45903,7 @@ zaiyi	再议	3149
 zhangben	账本	3149
 zhangzhe	张着	3149
 zhanlueyiyi	战略意义	3149
+zhanlveyiyi	战略意义	3149
 zhanshou	斩首	3149
 zhanyou	占优	3149
 zhike	只可	3149
@@ -46154,6 +46190,7 @@ ze	啧	3144
 zengbai	增白	3144
 zengqinghong	曾庆红	3144
 zhanluejuece	战略决策	3144
+zhanlvejuece	战略决策	3144
 zhanshichu	展示出	3144
 zhao	沼	3144
 zhaozhe	罩着	3144
@@ -46258,6 +46295,7 @@ hujia	胡佳	3138
 jia	稼	3138
 jiancefangfa	检测方法	3138
 jianlue	简略	3138
+jianlve	简略	3138
 jiaofa	教法	3138
 jiaogong	教工	3138
 jiaoshoujia	脚手架	3138
@@ -46316,6 +46354,7 @@ neishang	内伤	3138
 nianhuo	年货	3138
 nongcunfunv	农村妇女	3138
 nueji	疟疾	3138
+nveji	疟疾	3138
 paiwai	排外	3138
 paiyoujienan	排忧解难	3138
 panyuqu	番禺区	3138
@@ -46853,6 +46892,7 @@ shequ	设区	3128
 shishu	十数	3128
 shixu	时许	3128
 shounue	受虐	3128
+shounve	受虐	3128
 shuidouhui	谁都会	3128
 shuping	述评	3128
 sixiang	思乡	3128
@@ -49644,6 +49684,7 @@ qingyu	请于	3073
 qinhe	亲和	3073
 qipai	棋牌	3073
 qiyezhanlue	企业战略	3073
+qiyezhanlve	企业战略	3073
 renliuliang	人流量	3073
 renzhengjigou	认证机构	3073
 rujiasixiang	儒家思想	3073
@@ -49837,6 +49878,7 @@ huxingtu	户型图	3067
 huyanbin	胡彦斌	3067
 ji	蓟	3067
 jialilue	伽利略	3067
+jialilve	伽利略	3067
 jiaming	假名	3067
 jian	見	3067
 jianmo	缄默	3067
@@ -49914,6 +49956,7 @@ shangtoumogen	上投摩根	3067
 shangwuzhongxin	商务中心	3067
 shenbu	深部	3067
 shengluehao	省略号	3067
+shenglvehao	省略号	3067
 shengrenda	省人大	3067
 shennongjia	神农架	3067
 shidi	失地	3067
@@ -51672,6 +51715,7 @@ goufanghetong	购房合同	3031
 gouqizi	枸杞子	3031
 guanfangluntan	官方论坛	3031
 guojiazhanlue	国家战略	3031
+guojiazhanlve	国家战略	3031
 haichanpin	海产品	3031
 haidi	海地	3031
 hanpeng	韩鹏	3031
@@ -51744,6 +51788,7 @@ liushuihao	流水号	3031
 liuxingxing	流行性	3031
 luanluan	乱乱	3031
 luedi	略低	3031
+lvedi	略低	3031
 machang	马场	3031
 maorong	毛绒	3031
 maoyong	冒用	3031
@@ -52844,6 +52889,7 @@ lun	論	2530
 mo	脉	2530
 nai	氖	2530
 nue	疟	2530
+nve	疟	2530
 re	熱	2530
 shan	跚	2530
 shi	實	2530
@@ -55426,6 +55472,7 @@ min	笢	1616
 ming	鳴	1616
 nao	猱	1616
 nue	瘧	1616
+nve	瘧	1616
 pan	媻	1616
 pang	磅	1616
 peng	堋	1616
@@ -59292,6 +59339,7 @@ lv	梠	716
 lv	櫨	716
 lv	葎	716
 lv	褸	716
+lve	锊	716
 ma	嘜	716
 ma	嬤	716
 ma	犘	716
@@ -61469,6 +61517,7 @@ lv	蔞	452
 lv	藘	452
 lv	謱	452
 lv	郘	452
+lve	畧	452
 ma	摩	452
 ma	痳	452
 ma	禡	452
@@ -64114,6 +64163,7 @@ luo	鵅	2
 lv	穭	2
 lv	鑢	2
 lv	鷜	2
+lve	鋝	2
 ma	榪	2
 ma	溤	2
 ma	礣	2
@@ -82271,6 +82321,32 @@ lv	𰅔	1
 lv	𰚦	1
 lv	𰱩	1
 lv	𰱮	1
+lve	㑼	1
+lve	㔀	1
+lve	㗉	1
+lve	㨼	1
+lve	䂮	1
+lve	䌎	1
+lve	䛚	1
+lve	䤣	1
+lve	剠	1
+lve	圙	1
+lve	寽	1
+lve	擽	1
+lve	率	1
+lve	稤	1
+lve	藥	1
+lve	詻	1
+lve	鋢	1
+lve	𠢌	1
+lve	𠼟	1
+lve	𦊹	1
+lve	𧎾	1
+lve	𧐋	1
+lve	𧐯	1
+lve	𧑀	1
+lve	𧕌	1
+lve	𪅅	1
 m	唔	1
 ma	㐷	1
 ma	㑻	1
@@ -84604,6 +84680,13 @@ nv	𦓕	1
 nv	𦓖	1
 nv	𧖷	1
 nv	𩈢	1
+nve	䖈	1
+nve	䖋	1
+nve	䨋	1
+nve	婩	1
+nve	硸	1
+nve	𤷡	1
+nve	𨵫	1
 ou	㒖	1
 ou	㭝	1
 ou	㰶	1

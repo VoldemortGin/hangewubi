@@ -55,9 +55,16 @@ def normalize_pinyin(reading: str) -> str | None:
     return s if s.isascii() and s.isalpha() else None
 
 
+def ve_variant(syllables: list[str]) -> str | None:
+    """含 lue/nue 音节时返回全部改写成 lve/nve 的拼写，否则返回 None（供用户习惯 lve/nve 输入）。"""
+    if not any(s in ("lue", "nue") for s in syllables):
+        return None
+    return "".join(s[:-2] + "ve" if s in ("lue", "nue") else s for s in syllables)
+
+
 def parse_simp(content: str) -> dict[tuple[str, str], int]:
     """pinyin-simp 行格式：文本<TAB>空格分隔的拼音<TAB>词频；词频对数缩放到 2..9999。"""
-    rows: list[tuple[str, str, int]] = []
+    rows: list[tuple[str, list[str], int]] = []
     in_body = False
     for line in content.splitlines():
         if line == "...":
@@ -66,15 +73,17 @@ def parse_simp(content: str) -> dict[tuple[str, str], int]:
         parts = line.split("\t")
         if not in_body or len(parts) != 3:
             continue
-        text, pinyin, freq = parts[0], parts[1].replace(" ", "").lower(), int(parts[2])
-        rows.append((pinyin, text, freq))
+        text, syllables, freq = parts[0], parts[1].lower().split(), int(parts[2])
+        rows.append((syllables, text, freq))
     max_freq = max(r[2] for r in rows)
     entries: dict[tuple[str, str], int] = {}
-    for pinyin, text, freq in rows:
+    for syllables, text, freq in rows:
         # 权重 = 2 + round(log(1+freq) / log(1+max_freq) * (9999-2))；freq=0 时即为 2，保持相对顺序
         weight = MIN_WEIGHT + round(math.log1p(freq) / math.log1p(max_freq) * (MAX_WEIGHT - MIN_WEIGHT))
-        key = (pinyin, text)
-        entries[key] = max(entries.get(key, 0), weight)
+        for pinyin in (("".join(syllables)), ve_variant(syllables)):
+            if pinyin:
+                key = (pinyin, text)
+                entries[key] = max(entries.get(key, 0), weight)
     return entries
 
 
@@ -91,6 +100,8 @@ def parse_extra(content: str) -> set[tuple[str, str]]:
             pinyin = normalize_pinyin(reading)
             if pinyin:
                 out.add((pinyin, char))
+                if variant := ve_variant([pinyin]):
+                    out.add((variant, char))
     return out
 
 
