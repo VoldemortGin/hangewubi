@@ -57,6 +57,9 @@ int64_t ffi_init(const char *dict_path);
 // 返回加载的词条数，失败返回 -1
 int64_t ffi_init_with_pinyin(const char *dict_path, const char *pinyin_dict_path);
 
+// 拼音词典是否已加载（未初始化或初始化时无拼音文件均为 false）
+bool ffi_has_pinyin(void);
+
 // 处理字母按键
 struct FfiResult ffi_handle_key(char key);
 

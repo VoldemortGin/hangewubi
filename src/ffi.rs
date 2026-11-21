@@ -219,6 +219,12 @@ pub unsafe extern "C" fn ffi_init_with_pinyin(
     )
 }
 
+/// 拼音词典是否已加载（未初始化或初始化时无拼音文件均为 false）
+#[unsafe(no_mangle)]
+pub extern "C" fn ffi_has_pinyin() -> bool {
+    ffi_guard(|| false, || with_engine(false, |e| e.has_pinyin()))
+}
+
 /// 处理字母按键
 #[unsafe(no_mangle)]
 pub extern "C" fn ffi_handle_key(key: c_char) -> FfiResult {
@@ -776,6 +782,43 @@ mod tests {
 
     fn buffer_is_empty() -> bool {
         with_engine(true, |e| e.buffer().is_empty())
+    }
+
+    // 拼音文件缺失（纯五笔版）时初始化仍成功、无拼音、z 走万能键；带拼音文件则 has_pinyin 为 true。
+    #[test]
+    fn has_pinyin_follows_pinyin_file_presence() {
+        let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        clear_engine();
+        assert!(!ffi_has_pinyin(), "未初始化应为 false");
+
+        let dir = tempfile::tempdir().unwrap();
+        let wubi = dir.path().join("wubi.txt");
+        std::fs::write(&wubi, "a\t工\t9999\nzb\t子\t5000\n").unwrap();
+        let pinyin = dir.path().join("pinyin.txt");
+        std::fs::write(&pinyin, "zhao\t找\t9000\n").unwrap();
+        let w = CString::new(wubi.to_str().unwrap()).unwrap();
+        let missing = CString::new(dir.path().join("none.txt").to_str().unwrap()).unwrap();
+        let p = CString::new(pinyin.to_str().unwrap()).unwrap();
+
+        // 拼音路径指向不存在的文件：静默降级
+        assert_eq!(
+            unsafe { ffi_init_with_pinyin(w.as_ptr(), missing.as_ptr()) },
+            2
+        );
+        assert!(!ffi_has_pinyin());
+        ffi_handle_key(b'z' as c_char);
+        ffi_handle_key(b'b' as c_char);
+        let list = ffi_get_candidates();
+        let first = unsafe { CStr::from_ptr((*list.candidates).text) }
+            .to_string_lossy()
+            .into_owned();
+        ffi_free_candidate_list(list);
+        assert_eq!(first, "子", "无拼音时 z 为万能键");
+
+        clear_engine();
+        assert_eq!(unsafe { ffi_init_with_pinyin(w.as_ptr(), p.as_ptr()) }, 2);
+        assert!(ffi_has_pinyin());
+        clear_engine();
     }
 
     // ffi_guard 直接单元测试：正常闭包透传、panic 闭包返回默认值。

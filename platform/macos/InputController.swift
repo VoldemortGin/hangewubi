@@ -27,6 +27,12 @@ private func debugLog(_ message: @autoclosure () -> String) {
     #endif
 }
 
+/// 「关于」页版本文字：读 Info.plist；包内无拼音数据（纯五笔版）时加后缀
+private func appVersionText() -> String {
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+    return ffi_has_pinyin() ? version : "\(version)（纯五笔版）"
+}
+
 // MARK: - Notifications
 
 extension Notification.Name {
@@ -642,7 +648,7 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         view.addSubview(nameLabel)
 
         // Version
-        let versionLabel = NSTextField(labelWithString: "版本 0.2.0")
+        let versionLabel = NSTextField(labelWithString: "版本 \(appVersionText())")
         versionLabel.font = NSFont.systemFont(ofSize: 14)
         versionLabel.textColor = .secondaryLabelColor
         versionLabel.alignment = .center
@@ -892,7 +898,11 @@ class PreferencesWindow: NSWindow, NSTabViewDelegate, NSTableViewDataSource, NST
         autoCommitUnique4Check.state = s.autoCommitUnique4 ? .on : .off
         autoCommitFirst5Check.state = s.autoCommitFirst5 ? .on : .off
         progressiveHintCheck.state = s.progressiveHint ? .on : .off
-        pinyinMixedEnabledCheck.state = s.pinyinMixedEnabled ? .on : .off
+        // 纯五笔版（包内无拼音数据）：拼音混输不可用，置灰并说明
+        let hasPinyin = ffi_has_pinyin()
+        pinyinMixedEnabledCheck.state = (s.pinyinMixedEnabled && hasPinyin) ? .on : .off
+        pinyinMixedEnabledCheck.isEnabled = hasPinyin
+        pinyinMixedEnabledCheck.title = hasPinyin ? "启用拼音混输" : "启用拼音混输（纯五笔版不含拼音数据）"
         commonCharsOnlyCheck.state = s.commonCharsOnly ? .on : .off
         autoPhraseCheck.state = s.autoPhrase ? .on : .off
         associationCheck.state = s.association ? .on : .off
@@ -1367,7 +1377,7 @@ class InputController: IMKInputController {
             UInt8(s.enterKeyAction),
             UInt8(s.emptyCodeAction),
             UInt8(s.candidateCountValue),
-            s.pinyinMixedEnabled
+            s.pinyinMixedEnabled && ffi_has_pinyin()
         )
         ffi_set_code_hint(s.progressiveHint)
         ffi_set_common_chars_only(s.commonCharsOnly)
@@ -1419,7 +1429,7 @@ class InputController: IMKInputController {
     @objc private func showAbout(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "晗戈五笔"
-        alert.informativeText = "版本 0.2.0\n基于 Rust 引擎的五笔输入法"
+        alert.informativeText = "版本 \(appVersionText())\n基于 Rust 引擎的五笔输入法"
         alert.alertStyle = .informational
         alert.addButton(withTitle: "确定")
         alert.runModal()

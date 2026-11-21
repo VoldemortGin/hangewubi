@@ -5,13 +5,21 @@
 #   ./build.sh dev      — 同上
 #   ./build.sh release  — Developer ID 签名 + 强化运行时
 #   ./build.sh dist     — Developer ID 签名 + 公证 + DMG 打包
+#   HANGEWUBI_EDITION=wubi-only ./build.sh [模式] — 纯五笔版（不含拼音数据，z 为万能键）；
+#                       默认 standard 标准版。纯五笔版输出到 target/macos-app-wubi-only/
 set -e
 
 # ==================== 基本变量 ====================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+EDITION="${HANGEWUBI_EDITION:-standard}"
 BUILD_DIR="$PROJECT_ROOT/target/macos-app"
+DMG_SUFFIX=""
+if [[ "$EDITION" == "wubi-only" ]]; then
+    BUILD_DIR="$PROJECT_ROOT/target/macos-app-wubi-only"
+    DMG_SUFFIX="-wubi-only"
+fi
 APP_NAME="HangeWubi.app"
 BUILD_MODE="${1:-dev}"
 
@@ -56,7 +64,13 @@ if [[ "$BUILD_MODE" != "dev" && "$BUILD_MODE" != "release" && "$BUILD_MODE" != "
     exit 1
 fi
 
-echo "=== 构建晗戈五笔 macOS 输入法 (v${VERSION}, 模式: ${BUILD_MODE}) ==="
+if [[ "$EDITION" != "standard" && "$EDITION" != "wubi-only" ]]; then
+    echo "错误: 未知的版本类型 HANGEWUBI_EDITION='$EDITION'"
+    echo "可选: standard（默认，含拼音数据）| wubi-only（纯五笔版）"
+    exit 1
+fi
+
+echo "=== 构建晗戈五笔 macOS 输入法 (v${VERSION}, 模式: ${BUILD_MODE}, 版本类型: ${EDITION}) ==="
 
 # release 和 dist 模式需要加载凭据
 if [[ "$BUILD_MODE" == "release" || "$BUILD_MODE" == "dist" ]]; then
@@ -114,7 +128,10 @@ swiftc \
 echo "[4/6] 复制资源..."
 cp "$PROJECT_ROOT/target/release/libhangewubi.dylib" "$BUILD_DIR/$APP_NAME/Contents/MacOS/"
 cp "$PROJECT_ROOT/data/wubi86.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
-cp "$PROJECT_ROOT/data/pinyin.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
+# 纯五笔版不带拼音数据：引擎找不到拼音文件时静默走纯五笔
+if [[ "$EDITION" == "standard" ]]; then
+    cp "$PROJECT_ROOT/data/pinyin.txt" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
+fi
 cp "$PROJECT_ROOT/data/config.toml" "$BUILD_DIR/$APP_NAME/Contents/Resources/data/"
 
 # 复制应用图标
@@ -188,7 +205,7 @@ fi
 # ==================== 7. DMG 打包 + 公证（仅 dist 模式） ====================
 
 if [[ "$BUILD_MODE" == "dist" ]]; then
-    DMG_NAME="HangeWubi-${VERSION}.dmg"
+    DMG_NAME="HangeWubi-${VERSION}${DMG_SUFFIX}.dmg"
     DMG_PATH="$BUILD_DIR/$DMG_NAME"
 
     echo ""
@@ -245,7 +262,7 @@ fi
 # ==================== 完成 ====================
 
 echo ""
-echo "=== 构建完成 (v${VERSION}, 模式: ${BUILD_MODE}) ==="
+echo "=== 构建完成 (v${VERSION}, 模式: ${BUILD_MODE}, 版本类型: ${EDITION}) ==="
 echo "App 输出: $BUILD_DIR/$APP_NAME"
 
 if [[ "$BUILD_MODE" == "dev" ]]; then

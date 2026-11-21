@@ -244,6 +244,11 @@ impl InputEngine {
         self.pinyin_dict = Some(pinyin_dict);
     }
 
+    /// 拼音词典是否已加载
+    pub fn has_pinyin(&self) -> bool {
+        self.pinyin_dict.is_some()
+    }
+
     /// 获取当前编码
     pub fn buffer(&self) -> &str {
         &self.buffer
